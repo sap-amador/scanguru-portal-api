@@ -1,0 +1,30 @@
+# NEVER ship local secrets to the container
+.env
+.env.local
+.env.production
+
+# Local-only stuff
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.DS_Store
+storage/
+.git/
+.gitignore
+.idea/
+.vscode/
+
+# Backup files from patch scripts
+app/**/*_backup_*.py
+
+# Test fixtures
+tests/
+
+# Docs (don't need them in container)
+docs/
+*.md
+
+# Local web files (frontend deploys separately)
+web/
