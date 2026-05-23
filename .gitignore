@@ -1,0 +1,32 @@
+# Secrets — NEVER push these
+.env
+.env.local
+.env.production
+*.key
+*.pem
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Local PHI from testing — never push
+storage/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+
+# Backups from our patch scripts
+app/routers/*_backup_*.py
+app/*_backup_*.py

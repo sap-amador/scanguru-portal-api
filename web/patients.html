@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patients | ScanGuru</title>
+    <link rel="icon" type="image/png" href="assets/scanguru-mark.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #14B8A6;
+            --primary-dark: #0D9488;
+            --primary-light: #5EEAD4;
+            --primary-bg: rgba(20, 184, 166, 0.1);
+            --primary-glow: rgba(20, 184, 166, 0.4);
+            --critical: #EF4444;
+            --bg-primary: #0A0E1A;
+            --bg-secondary: #111827;
+            --bg-tertiary: #1A2233;
+            --bg-card: #151D2E;
+            --border: #2A3548;
+            --border-light: #1F2937;
+            --text: #F1F5F9;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary); color: var(--text);
+            min-height: 100vh; display: flex;
+        }
+        .sidebar {
+            width: 260px; background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 24px 0; display: flex; flex-direction: column;
+            position: sticky; top: 0; height: 100vh;
+        }
+        .sidebar-header {
+            padding: 0 24px 24px; border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .sidebar-logo {
+            width: 40px; height: 40px; border-radius: 10px;
+            display: flex; align-items: center; justify-content: center; overflow: hidden;
+        }
+        .sidebar-logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .sidebar-brand {
+            font-size: 20px; font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .sidebar-nav { flex: 1; padding: 16px 12px; overflow-y: auto; }
+        .nav-section { margin-bottom: 24px; }
+        .nav-section-title {
+            font-size: 11px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+            padding: 8px 12px; margin-bottom: 4px;
+        }
+        .nav-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 12px; border-radius: 8px;
+            color: var(--text-secondary); text-decoration: none;
+            font-size: 14px; transition: all 0.2s; margin-bottom: 2px;
+        }
+        .nav-item:hover { background: var(--bg-tertiary); color: var(--text); }
+        .nav-item.active { background: var(--primary-bg); color: var(--primary); font-weight: 500; }
+        .nav-item i { width: 20px; text-align: center; }
+        .sidebar-footer { padding: 16px 12px; border-top: 1px solid var(--border); }
+        .user-profile {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px; border-radius: 8px; background: var(--bg-tertiary);
+        }
+        .user-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 14px; color: white;
+        }
+        .user-info { flex: 1; }
+        .user-name { font-size: 13px; font-weight: 600; }
+        .user-role { font-size: 11px; color: var(--text-muted); }
+
+        .main-content { flex: 1; padding: 24px 32px; min-width: 0; }
+        .page-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 24px; gap: 16px; flex-wrap: wrap;
+        }
+        .page-title { font-size: 28px; font-weight: 700; }
+        .page-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+        .header-search { flex: 1; max-width: 400px; position: relative; }
+        .header-search input {
+            width: 100%; padding: 10px 14px 10px 40px;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 10px; color: var(--text); font-size: 14px;
+            outline: none; transition: border-color 0.2s;
+        }
+        .header-search input:focus { border-color: var(--primary); }
+        .header-search i {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            color: var(--text-muted); font-size: 14px;
+        }
+        .btn-primary {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 18px; background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white; border: none; border-radius: 10px;
+            font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 12px var(--primary-glow); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .mini-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .mini-stat {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 16px;
+        }
+        .mini-stat-value { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+        .mini-stat-label { font-size: 12px; color: var(--text-muted); }
+
+        .table-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; overflow: hidden;
+        }
+        .table-wrapper { overflow-x: auto; }
+        .patients-table { width: 100%; }
+        .patients-table thead { background: var(--bg-tertiary); }
+        .patients-table th {
+            padding: 14px 20px; text-align: left;
+            font-size: 12px; font-weight: 600; color: var(--text-muted);
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .patients-table td {
+            padding: 16px 20px; border-bottom: 1px solid var(--border-light);
+            font-size: 14px;
+        }
+        .patients-table tbody tr { cursor: pointer; transition: background 0.15s; }
+        .patients-table tbody tr:hover { background: var(--primary-bg); }
+        .patient-cell { display: flex; align-items: center; gap: 12px; }
+        .patient-avatar-table {
+            width: 36px; height: 36px; border-radius: 8px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 13px; color: white; flex-shrink: 0;
+        }
+        .patient-name { font-weight: 500; }
+        .patient-visible-id { font-size: 12px; color: var(--text-muted); font-family: monospace; }
+        .action-btn {
+            width: 32px; height: 32px; border-radius: 6px;
+            background: transparent; border: 1px solid var(--border);
+            color: var(--text-muted); display: inline-flex;
+            align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s; margin-right: 4px;
+            position: relative; z-index: 2;
+        }
+        .action-btn:hover { background: var(--primary-bg); border-color: var(--primary); color: var(--primary); }
+
+        .pagination {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 16px 20px; border-top: 1px solid var(--border-light);
+            color: var(--text-muted); font-size: 13px;
+        }
+        .pagination-btns { display: flex; gap: 8px; }
+        .pagination-btn {
+            padding: 6px 12px; background: transparent;
+            border: 1px solid var(--border); border-radius: 6px;
+            color: var(--text-secondary); cursor: pointer; font-size: 13px; transition: all 0.2s;
+        }
+        .pagination-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+        .pagination-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .modal-overlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(10, 14, 26, 0.85); backdrop-filter: blur(4px);
+            align-items: center; justify-content: center; z-index: 100;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 16px; width: 90%; max-width: 520px;
+            padding: 28px; max-height: 90vh; overflow-y: auto;
+        }
+        .modal-header {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .modal-title { font-size: 20px; font-weight: 700; }
+        .modal-close {
+            width: 32px; height: 32px; border-radius: 8px;
+            background: transparent; border: none; color: var(--text-muted);
+            cursor: pointer; transition: all 0.2s;
+        }
+        .modal-close:hover { background: var(--bg-tertiary); color: var(--text); }
+        .form-group { margin-bottom: 14px; }
+        .form-group.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--text-secondary); }
+        .form-input, .form-select {
+            width: 100%; padding: 10px 12px;
+            background: var(--bg-tertiary); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text); font-size: 14px;
+            font-family: inherit; outline: none; transition: border-color 0.2s;
+        }
+        .form-input:focus, .form-select:focus { border-color: var(--primary); }
+        .modal-footer {
+            display: flex; justify-content: flex-end; gap: 12px;
+            margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border-light);
+        }
+        .btn-secondary {
+            padding: 10px 18px; background: transparent;
+            border: 1px solid var(--border); border-radius: 10px;
+            color: var(--text-secondary); cursor: pointer; font-size: 14px;
+        }
+        .btn-secondary:hover { border-color: var(--text-muted); color: var(--text); }
+        .empty-state { padding: 60px 20px; text-align: center; color: var(--text-muted); }
+        .empty-state i { font-size: 48px; margin-bottom: 16px; color: var(--border); display: block; }
+        .empty-state-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <img src="assets/scanguru-mark.png" alt="ScanGuru">
+            </div>
+            <span class="sidebar-brand">ScanGuru</span>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Overview</div>
+                <a href="dashboard-main.html" class="nav-item">
+                    <i class="fas fa-th-large"></i><span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item"><i class="fas fa-chart-line"></i><span>Analytics</span></a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Studies</div>
+                <a href="dashboard-main.html" class="nav-item">
+                    <i class="fas fa-folder"></i><span>All Studies</span>
+                </a>
+                <a href="dashboard-main.html" class="nav-item">
+                    <i class="fas fa-exclamation-triangle"></i><span>Critical</span>
+                </a>
+                <a href="dashboard-main.html" class="nav-item">
+                    <i class="fas fa-clock"></i><span>Pending Review</span>
+                </a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Management</div>
+                <a href="#" class="nav-item active">
+                    <i class="fas fa-users"></i><span>Patients</span>
+                </a>
+                <a href="dashboard-main.html" class="nav-item">
+                    <i class="fas fa-file-medical"></i><span>Reports</span>
+                </a>
+                <a href="#" class="nav-item"><i class="fas fa-user-md"></i><span>Physicians</span></a>
+            </div>
+            <div class="nav-section">
+                <div class="nav-section-title">Settings</div>
+                <a href="#" class="nav-item"><i class="fas fa-sliders-h"></i><span>Preferences</span></a>
+                <a href="#" class="nav-item"><i class="fas fa-plug"></i><span>Integrations</span></a>
+                <a href="#" class="nav-item"><i class="fas fa-code"></i><span>API Access</span></a>
+            </div>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-profile">
+                <div class="user-avatar" id="user-avatar">--</div>
+                <div class="user-info">
+                    <div class="user-name" id="user-name">Loading…</div>
+                    <div class="user-role" id="user-role">&nbsp;</div>
+                </div>
+                <i class="fas fa-chevron-down" id="logout-btn" title="Sign out" style="color: var(--text-muted); cursor: pointer;"></i>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Patients</h1>
+                <div class="page-subtitle" id="patients-subtitle">Loading…</div>
+            </div>
+            <div class="header-search">
+                <i class="fas fa-search"></i>
+                <input type="text" id="patient-search" placeholder="Search by name, MRN, or patient ID…">
+            </div>
+            <button class="btn-primary" id="add-patient-btn">
+                <i class="fas fa-user-plus"></i>
+                Add Patient
+            </button>
+        </div>
+
+        <div class="mini-stats">
+            <div class="mini-stat">
+                <div class="mini-stat-value" id="stat-total-patients">—</div>
+                <div class="mini-stat-label">Total Patients</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-value" id="stat-with-studies">—</div>
+                <div class="mini-stat-label">With Studies</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-value" id="stat-new-this-month">—</div>
+                <div class="mini-stat-label">New This Month</div>
+            </div>
+            <div class="mini-stat">
+                <div class="mini-stat-value" id="stat-male-female">—</div>
+                <div class="mini-stat-label">M / F</div>
+            </div>
+        </div>
+
+        <div class="table-card">
+            <div class="table-wrapper">
+                <table class="patients-table">
+                    <thead>
+                        <tr>
+                            <th>Patient</th>
+                            <th>MRN</th>
+                            <th>Sex / Age</th>
+                            <th>Studies</th>
+                            <th>Last Study</th>
+                            <th style="text-align:right;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="patients-body">
+                        <tr><td colspan="6" style="text-align:center;padding:48px;color:var(--text-muted);">Loading patients…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="pagination" id="pagination" style="display:none;">
+                <div id="pagination-info">—</div>
+                <div class="pagination-btns">
+                    <button class="pagination-btn" id="page-prev">Previous</button>
+                    <button class="pagination-btn" id="page-next">Next</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div class="modal-overlay" id="add-patient-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">Add Patient</div>
+                <button class="modal-close" id="add-patient-close"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Patient Name *</label>
+                <input type="text" id="ap-name" class="form-input" placeholder="Full name">
+            </div>
+            <div class="form-group">
+                <label class="form-label">MRN *</label>
+                <input type="text" id="ap-mrn" class="form-input" placeholder="Medical Record Number" style="font-family: monospace;">
+            </div>
+            <div class="form-group row">
+                <div>
+                    <label class="form-label">Date of Birth</label>
+                    <input type="date" id="ap-dob" class="form-input">
+                </div>
+                <div>
+                    <label class="form-label">Sex</label>
+                    <select id="ap-sex" class="form-select">
+                        <option value="">Select…</option>
+                        <option value="M">Male</option>
+                        <option value="F">Female</option>
+                        <option value="O">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group row">
+                <div>
+                    <label class="form-label">Phone</label>
+                    <input type="tel" id="ap-phone" class="form-input" placeholder="Optional">
+                </div>
+                <div>
+                    <label class="form-label">Email</label>
+                    <input type="email" id="ap-email" class="form-input" placeholder="Optional">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                <input type="text" id="ap-address" class="form-input" placeholder="Optional">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="add-patient-cancel">Cancel</button>
+                <button class="btn-primary" id="add-patient-save">
+                    <i class="fas fa-check"></i>
+                    Add Patient
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        var API_BASE = 'http://localhost:8001/api/v1';
+        var token = sessionStorage.getItem('scanguru_token');
+        if (!token) { window.location.href = 'portal-login.html'; return; }
+
+        function authed(path, opts) {
+            opts = opts || {};
+            var headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+            return fetch(API_BASE + path, Object.assign({}, opts, { headers: headers }));
+        }
+        function fetchJSON(path) {
+            return authed(path).then(function(r) {
+                if (r.status === 401) {
+                    sessionStorage.removeItem('scanguru_token');
+                    window.location.href = 'portal-login.html';
+                    throw new Error('unauthenticated');
+                }
+                if (!r.ok) {
+                    return r.json().catch(function() { return null; }).then(function(j) {
+                        var detail = (j && j.detail) || ('HTTP ' + r.status);
+                        throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+                    });
+                }
+                return r.json();
+            });
+        }
+
+        function initials(name) {
+            if (!name) return '--';
+            var parts = name.trim().split(/\s+/);
+            return ((parts[0] || '')[0] || '').toUpperCase()
+                 + ((parts[parts.length - 1] || '')[0] || '').toUpperCase();
+        }
+        function ageFromDob(iso) {
+            if (!iso) return null;
+            var diff = Date.now() - new Date(iso).getTime();
+            return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+        }
+        function fmtDate(iso) {
+            if (!iso) return '—';
+            return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+        function escapeHtml(s) {
+            if (s == null) return '';
+            return String(s).replace(/[&<>"']/g, function(c) {
+                return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+            });
+        }
+
+        function loadMe() {
+            return fetchJSON('/auth/me').then(function(me) {
+                document.getElementById('user-name').textContent = me.full_name || me.email;
+                document.getElementById('user-role').textContent = (me.role || '').replace(/^./, function(c){return c.toUpperCase();});
+                document.getElementById('user-avatar').textContent = initials(me.full_name);
+            }).catch(function(e) { console.error(e); });
+        }
+
+        var _currentPage = 1;
+        var _pageSize = 20;
+        var _searchTerm = '';
+
+        function renderRow(p) {
+            var age = ageFromDob(p.dob);
+            var sexAge = [(p.sex || '—'), (age != null ? age + ' y' : '')].filter(Boolean).join(' / ');
+            return ''
+                + '<tr data-patient-id="' + p.id + '">'
+                +   '<td><div class="patient-cell"><div class="patient-avatar-table">' + initials(p.name) + '</div>'
+                +     '<div><div class="patient-name">' + escapeHtml(p.name) + '</div>'
+                +     '<div class="patient-visible-id">' + escapeHtml(p.visible_id || '') + '</div></div></div></td>'
+                +   '<td style="font-family:monospace;font-size:13px;">' + escapeHtml(p.mrn || '') + '</td>'
+                +   '<td>' + escapeHtml(sexAge) + '</td>'
+                +   '<td>' + (p.study_count != null ? p.study_count : '—') + '</td>'
+                +   '<td style="color:var(--text-muted);">' + fmtDate(p.last_study_at) + '</td>'
+                +   '<td style="text-align:right;white-space:nowrap;">'
+                +     '<button class="action-btn" title="View patient" data-action="view"><i class="fas fa-eye"></i></button>'
+                +     '<button class="action-btn" title="New scan" data-action="newscan"><i class="fas fa-plus"></i></button>'
+                +   '</td>'
+                + '</tr>';
+        }
+
+        function renderMiniStats(items, totalCount) {
+            var total = totalCount != null ? totalCount : items.length;
+            document.getElementById('stat-total-patients').textContent = total;
+            var withStudies = items.filter(function(p){ return (p.study_count || 0) > 0; }).length;
+            document.getElementById('stat-with-studies').textContent = withStudies;
+            var monthAgo = Date.now() - 30 * 86400000;
+            var newThisMonth = items.filter(function(p){
+                return p.created_at && new Date(p.created_at).getTime() > monthAgo;
+            }).length;
+            document.getElementById('stat-new-this-month').textContent = newThisMonth;
+            var m = items.filter(function(p){ return p.sex === 'M'; }).length;
+            var f = items.filter(function(p){ return p.sex === 'F'; }).length;
+            document.getElementById('stat-male-female').textContent = m + ' / ' + f;
+        }
+
+        function loadPatients() {
+            var tbody = document.getElementById('patients-body');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:48px;color:var(--text-muted);">Loading patients…</td></tr>';
+            var qparts = ['page=' + _currentPage, 'page_size=' + _pageSize];
+            if (_searchTerm) qparts.push('q=' + encodeURIComponent(_searchTerm));
+            fetchJSON('/patients?' + qparts.join('&')).then(function(data) {
+                var items = data.items || [];
+                if (!items.length) {
+                    var msg = _searchTerm
+                        ? '<div class="empty-state-title">No patients match "' + escapeHtml(_searchTerm) + '"</div><div>Try a different name, MRN, or patient ID.</div>'
+                        : '<div class="empty-state-title">No patients yet</div><div>Click <strong>Add Patient</strong> or upload a scan to create your first one.</div>';
+                    tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-users"></i>' + msg + '</div></td></tr>';
+                } else {
+                    tbody.innerHTML = items.map(renderRow).join('');
+                    bindRowClicks(tbody);
+                }
+                renderMiniStats(items, data.total);
+                var total = data.total != null ? data.total : items.length;
+                document.getElementById('patients-subtitle').textContent =
+                    total + ' patient' + (total === 1 ? '' : 's') + ' total';
+                var totalPages = data.total != null ? Math.max(1, Math.ceil(data.total / _pageSize)) : 1;
+                var pagination = document.getElementById('pagination');
+                if (totalPages > 1) {
+                    pagination.style.display = 'flex';
+                    document.getElementById('pagination-info').textContent =
+                        'Page ' + _currentPage + ' of ' + totalPages + ' — showing ' + items.length + ' of ' + data.total + ' patients';
+                    document.getElementById('page-prev').disabled = _currentPage <= 1;
+                    document.getElementById('page-next').disabled = _currentPage >= totalPages;
+                } else {
+                    pagination.style.display = 'none';
+                }
+            }).catch(function(e) {
+                console.error('loadPatients:', e);
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--critical);">'
+                    + 'Failed to load patients.<br><span style="font-size:12px;color:var(--text-muted);">'
+                    + escapeHtml(e.message) + '</span></td></tr>';
+            });
+        }
+
+        function bindRowClicks(tbody) {
+            var rows = tbody.querySelectorAll('tr[data-patient-id]');
+            for (var i = 0; i < rows.length; i++) {
+                (function(tr) {
+                    var pid = tr.dataset.patientId;
+                    tr.addEventListener('click', function() {
+                        window.location.href = 'patient-detail.html?patient=' + pid;
+                    });
+                    var btns = tr.querySelectorAll('.action-btn');
+                    for (var j = 0; j < btns.length; j++) {
+                        (function(btn) {
+                            btn.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                var action = btn.dataset.action;
+                                if (action === 'view') {
+                                    window.location.href = 'patient-detail.html?patient=' + pid;
+                                } else if (action === 'newscan') {
+                                    window.location.href = 'dashboard-main.html?action=newstudy&patient=' + pid;
+                                }
+                            });
+                        })(btns[j]);
+                    }
+                })(rows[i]);
+            }
+        }
+
+        var _searchTimer = null;
+        document.getElementById('patient-search').addEventListener('input', function(e) {
+            clearTimeout(_searchTimer);
+            _searchTimer = setTimeout(function() {
+                _searchTerm = e.target.value.trim();
+                _currentPage = 1;
+                loadPatients();
+            }, 300);
+        });
+
+        document.getElementById('page-prev').addEventListener('click', function() {
+            if (_currentPage > 1) { _currentPage--; loadPatients(); }
+        });
+        document.getElementById('page-next').addEventListener('click', function() {
+            _currentPage++; loadPatients();
+        });
+
+        var addModal = document.getElementById('add-patient-modal');
+        function openAddModal() {
+            ['ap-name','ap-mrn','ap-dob','ap-sex','ap-phone','ap-email','ap-address'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            addModal.classList.add('active');
+            setTimeout(function() { document.getElementById('ap-name').focus(); }, 50);
+        }
+        function closeAddModal() { addModal.classList.remove('active'); }
+        document.getElementById('add-patient-btn').addEventListener('click', openAddModal);
+        document.getElementById('add-patient-close').addEventListener('click', closeAddModal);
+        document.getElementById('add-patient-cancel').addEventListener('click', closeAddModal);
+        addModal.addEventListener('click', function(e) { if (e.target === addModal) closeAddModal(); });
+
+        document.getElementById('add-patient-save').addEventListener('click', function() {
+            var name = document.getElementById('ap-name').value.trim();
+            var mrn = document.getElementById('ap-mrn').value.trim();
+            if (!name) { alert('Patient name is required.'); return; }
+            if (!mrn)  { alert('MRN is required.'); return; }
+
+            var payload = {
+                name: name, mrn: mrn,
+                dob: document.getElementById('ap-dob').value || null,
+                sex: document.getElementById('ap-sex').value || null,
+                phone: document.getElementById('ap-phone').value.trim() || null,
+                email: document.getElementById('ap-email').value.trim() || null,
+                address: document.getElementById('ap-address').value.trim() || null
+            };
+
+            var saveBtn = document.getElementById('add-patient-save');
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+
+            authed('/patients', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(function(r) {
+                if (!r.ok) {
+                    return r.json().catch(function() { return null; }).then(function(j) {
+                        var detail = (j && j.detail) || ('HTTP ' + r.status);
+                        throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+                    });
+                }
+                closeAddModal();
+                loadPatients();
+            }).catch(function(e) {
+                alert('Failed to add patient: ' + e.message);
+            }).then(function() {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-check"></i> Add Patient';
+            });
+        });
+
+        document.getElementById('logout-btn').addEventListener('click', function() {
+            sessionStorage.removeItem('scanguru_token');
+            window.location.href = 'portal-login.html';
+        });
+
+        var inertLabels = ['Analytics','Physicians','Preferences','Integrations','API Access'];
+        inertLabels.forEach(function(label) {
+            var items = document.querySelectorAll('.nav-item');
+            for (var i = 0; i < items.length; i++) {
+                var span = items[i].querySelector('span');
+                if (span && span.textContent.trim() === label) {
+                    items[i].style.cursor = 'not-allowed';
+                    items[i].style.opacity = '0.55';
+                    items[i].title = 'Coming soon';
+                    items[i].addEventListener('click', function(e) { e.preventDefault(); });
+                }
+            }
+        });
+
+        loadMe();
+        loadPatients();
+    })();
+    </script>
+</body>
+</html>

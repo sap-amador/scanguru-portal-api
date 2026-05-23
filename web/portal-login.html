@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ScanGuru Customer Portal - Sign In</title>
+    <link rel="icon" type="image/png" href="assets/scanguru-mark.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #14B8A6;
+            --primary-dark: #0D9488;
+            --primary-light: #5EEAD4;
+            --primary-glow: rgba(20, 184, 166, 0.3);
+            --success: #22C55E;
+            --error: #EF4444;
+            --bg: #0A0F1C;
+            --bg-card: #111827;
+            --bg-elevated: #1F2937;
+            --border: #1F2937;
+            --border-focus: rgba(20, 184, 166, 0.5);
+            --text: #F8FAFC;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+        }
+        
+        /* Left Panel - Branding */
+        .brand-panel {
+            flex: 1;
+            background: linear-gradient(135deg, var(--bg) 0%, #0D1B2A 100%);
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .brand-panel::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: 
+                radial-gradient(ellipse at 30% 30%, rgba(20, 184, 166, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 70% 70%, rgba(99, 102, 241, 0.05) 0%, transparent 50%);
+            animation: ambientMove 20s ease-in-out infinite;
+        }
+        
+        @keyframes ambientMove {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(2%, 2%); }
+        }
+        
+        .brand-content {
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 80px;
+        }
+        
+        .logo-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            box-shadow: 0 8px 32px var(--primary-glow);
+        }
+        .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .logo-text {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .brand-headline {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        .brand-headline h1 {
+            font-size: 48px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 24px;
+        }
+        
+        .brand-headline h1 span {
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .brand-headline p {
+            font-size: 18px;
+            color: var(--text-secondary);
+            max-width: 480px;
+            line-height: 1.7;
+        }
+        
+        /* Feature Pills */
+        .feature-pills {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-top: 40px;
+        }
+        
+        .feature-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            background: rgba(20, 184, 166, 0.1);
+            border: 1px solid rgba(20, 184, 166, 0.2);
+            border-radius: 100px;
+            font-size: 13px;
+            color: var(--primary-light);
+        }
+        
+        .feature-pill i {
+            font-size: 12px;
+        }
+        
+        /* Stats */
+        .brand-stats {
+            display: flex;
+            gap: 48px;
+            margin-top: auto;
+            padding-top: 60px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .stat-item {
+            text-align: left;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        /* Right Panel - Login Form */
+        .login-panel {
+            width: 520px;
+            background: var(--bg-card);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 60px;
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .login-header h2 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .login-header p {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        /* Form */
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .form-label {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        
+        .input-wrapper {
+            position: relative;
+        }
+        
+        .input-wrapper i {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 16px;
+            transition: color 0.2s;
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 16px 16px 16px 48px;
+            background: var(--bg-elevated);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 15px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--primary-glow);
+        }
+        
+        .form-input:focus + i,
+        .input-wrapper:focus-within i {
+            color: var(--primary);
+        }
+        
+        .form-input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .password-toggle {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px;
+            transition: color 0.2s;
+        }
+        
+        .password-toggle:hover {
+            color: var(--text-secondary);
+        }
+        
+        .form-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+        }
+        
+        .checkbox-wrapper input {
+            display: none;
+        }
+        
+        .checkbox-custom {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .checkbox-custom i {
+            font-size: 10px;
+            color: white;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.2s;
+        }
+        
+        .checkbox-wrapper input:checked + .checkbox-custom {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        
+        .checkbox-wrapper input:checked + .checkbox-custom i {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .checkbox-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+        
+        .forgot-link {
+            font-size: 14px;
+            color: var(--primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        
+        .forgot-link:hover {
+            color: var(--primary-light);
+        }
+        
+        .btn {
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            color: white;
+            box-shadow: 0 4px 20px var(--primary-glow);
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px var(--primary-glow);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        /* Divider */
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 8px 0;
+        }
+        
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+        
+        .divider span {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        /* SSO Buttons */
+        .sso-buttons {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn-sso {
+            flex: 1;
+            padding: 14px 20px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.2s;
+        }
+        
+        .btn-sso:hover {
+            background: var(--bg-card);
+            border-color: var(--primary);
+        }
+        
+        .btn-sso img {
+            width: 20px;
+            height: 20px;
+        }
+        
+        /* Footer */
+        .login-footer {
+            text-align: center;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+        
+        .login-footer p {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        
+        .login-footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .login-footer a:hover {
+            color: var(--primary-light);
+        }
+        
+        /* Help Link */
+        .help-link {
+            text-align: center;
+            margin-top: 24px;
+        }
+        
+        .help-link a {
+            font-size: 13px;
+            color: var(--text-muted);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.2s;
+        }
+        
+        .help-link a:hover {
+            color: var(--text-secondary);
+        }
+        
+        /* Security Badge */
+        .security-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 32px;
+            padding: 12px;
+            background: rgba(34, 197, 94, 0.1);
+            border-radius: 10px;
+            font-size: 12px;
+            color: var(--success);
+        }
+        
+        .security-badge i {
+            font-size: 14px;
+        }
+        
+        /* Error State */
+        .form-error {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 10px;
+            font-size: 13px;
+            color: var(--error);
+        }
+        
+        .form-error.show {
+            display: flex;
+        }
+        
+        /* Loading State */
+        .btn-loading {
+            pointer-events: none;
+            opacity: 0.8;
+        }
+        
+        .btn-loading .btn-text {
+            display: none;
+        }
+        
+        .btn-loading .btn-spinner {
+            display: block;
+        }
+        
+        .btn-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Responsive */
+        @media (max-width: 1024px) {
+            body {
+                flex-direction: column;
+            }
+            
+            .brand-panel {
+                padding: 40px;
+                min-height: auto;
+            }
+            
+            .brand-headline h1 {
+                font-size: 32px;
+            }
+            
+            .brand-stats {
+                gap: 32px;
+            }
+            
+            .login-panel {
+                width: 100%;
+                padding: 40px;
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .brand-panel {
+                display: none;
+            }
+            
+            .login-panel {
+                min-height: 100vh;
+            }
+            
+            .sso-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Left Panel - Branding -->
+    <div class="brand-panel">
+        <div class="brand-content">
+            <div class="brand-logo">
+                <div class="logo-icon"><img src="assets/scanguru-mark.png" alt="ScanGuru"></div>
+                <span class="logo-text">ScanGuru</span>
+            </div>
+            
+            <div class="brand-headline">
+                <h1>Welcome to Your<br><span>AI Radiology Hub</span></h1>
+                <p>Access your dashboard to monitor integrations, view AI analysis results, and manage your radiology workflow — all from one secure portal.</p>
+                
+                <div class="feature-pills">
+                    <div class="feature-pill">
+                        <i class="fas fa-check"></i>
+                        Real-time Monitoring
+                    </div>
+                    <div class="feature-pill">
+                        <i class="fas fa-check"></i>
+                        AI Analysis Results
+                    </div>
+                    <div class="feature-pill">
+                        <i class="fas fa-check"></i>
+                        PACS/RIS Integration
+                    </div>
+                    <div class="feature-pill">
+                        <i class="fas fa-check"></i>
+                        Audit Logs
+                    </div>
+                </div>
+            </div>
+            
+            <div class="brand-stats">
+                <div class="stat-item">
+                    <div class="stat-value">500+</div>
+                    <div class="stat-label">Hospitals Connected</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">10M+</div>
+                    <div class="stat-label">Studies Analyzed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">99.9%</div>
+                    <div class="stat-label">Uptime SLA</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Right Panel - Login Form -->
+    <div class="login-panel">
+        <div class="login-header">
+            <h2>Sign in to Portal</h2>
+            <p>Enter your credentials to access your dashboard</p>
+        </div>
+        
+        <form class="login-form" onsubmit="handleLogin(event)">
+            <div class="form-error" id="formError">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>Invalid email or password. Please try again.</span>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Email Address</label>
+                <div class="input-wrapper">
+                    <input type="email" class="form-input" placeholder="you@hospital.org" required>
+                    <i class="fas fa-envelope"></i>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">Password</label>
+                <div class="input-wrapper">
+                    <input type="password" class="form-input" id="passwordInput" placeholder="••••••••••" required>
+                    <i class="fas fa-lock"></i>
+                    <button type="button" class="password-toggle" onclick="togglePassword()">
+                        <i class="fas fa-eye" id="passwordIcon"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <label class="checkbox-wrapper">
+                    <input type="checkbox">
+                    <div class="checkbox-custom">
+                        <i class="fas fa-check"></i>
+                    </div>
+                    <span class="checkbox-label">Remember me</span>
+                </label>
+                <a href="#" class="forgot-link">Forgot password?</a>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" id="loginBtn">
+                <span class="btn-text">Sign In</span>
+                <div class="btn-spinner"></div>
+            </button>
+            
+            <div class="divider">
+                <span>or continue with</span>
+            </div>
+            
+            <div class="sso-buttons">
+                <button type="button" class="btn-sso">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Google SSO
+                </button>
+                <button type="button" class="btn-sso">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M11.4 24H1.2C.5 24 0 23.5 0 22.8V1.2C0 .5.5 0 1.2 0h21.6c.7 0 1.2.5 1.2 1.2v21.6c0 .7-.5 1.2-1.2 1.2H16.5v-9.3h3.1l.5-3.6h-3.6V8.6c0-1 .3-1.7 1.8-1.7h1.9V3.7c-.3 0-1.4-.1-2.7-.1-2.7 0-4.5 1.6-4.5 4.6v2.7H9.9v3.6h3.1V24h-1.6z" fill="#1877F2"/>
+                    </svg>
+                    SAML SSO
+                </button>
+            </div>
+        </form>
+        
+        <div class="security-badge">
+            <i class="fas fa-shield-alt"></i>
+            Protected by 256-bit SSL encryption • HIPAA Compliant
+        </div>
+        
+        <div class="login-footer">
+            <p>Don't have an account? <a href="mailto:sales@scanguru.net">Contact Sales</a></p>
+        </div>
+        
+        <div class="help-link">
+            <a href="#">
+                <i class="fas fa-headset"></i>
+                Need help? Contact support
+            </a>
+        </div>
+    </div>
+    
+    <script>
+        function togglePassword() {
+            const input = document.getElementById('passwordInput');
+            const icon = document.getElementById('passwordIcon');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+        
+        // --- ScanGuru Portal API config ---
+        // Change this if your portal backend runs on a different host/port.
+        const API_BASE = 'http://localhost:8001/api/v1';
+
+        async function handleLogin(e) {
+            e.preventDefault();
+
+            const btn   = document.getElementById('loginBtn');
+            const error = document.getElementById('formError');
+            const email = document.querySelector('input[type="email"]').value.trim();
+            const password = document.getElementById('passwordInput').value;
+
+            btn.classList.add('btn-loading');
+            error.classList.remove('show');
+
+            try {
+                const r = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                if (!r.ok) {
+                    let msg = 'Invalid email or password. Please try again.';
+                    try {
+                        const j = await r.json();
+                        if (j.detail) msg = typeof j.detail === 'string' ? j.detail : 'Login failed.';
+                    } catch (_) { /* keep default */ }
+                    error.querySelector('span').textContent = msg;
+                    error.classList.add('show');
+                    return;
+                }
+
+                const data = await r.json();
+                sessionStorage.setItem('scanguru_token', data.access_token);
+                window.location.href = 'dashboard-main.html';
+            } catch (err) {
+                error.querySelector('span').textContent =
+                    'Cannot reach the portal API. Is the server running at ' + API_BASE + '?';
+                error.classList.add('show');
+            } finally {
+                btn.classList.remove('btn-loading');
+            }
+        }
+
+        // If already logged in, skip the form
+        if (sessionStorage.getItem('scanguru_token')) {
+            window.location.href = 'dashboard-main.html';
+        }
+    </script>
+</body>
+</html>

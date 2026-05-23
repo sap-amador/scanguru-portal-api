@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Patient Details | ScanGuru Dashboard</title>
+    <link rel="icon" type="image/png" href="assets/scanguru-mark.png">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #14B8A6;
+            --primary-dark: #0D9488;
+            --primary-light: #5EEAD4;
+            --primary-bg: rgba(20, 184, 166, 0.08);
+            --critical: #EF4444;
+            --critical-bg: rgba(239, 68, 68, 0.1);
+            --urgent: #F59E0B;
+            --urgent-bg: rgba(245, 158, 11, 0.1);
+            --routine: #22C55E;
+            --routine-bg: rgba(34, 197, 94, 0.1);
+            --pending: #6366F1;
+            --pending-bg: rgba(99, 102, 241, 0.1);
+            --bg-primary: #0F172A;
+            --bg-secondary: #1E293B;
+            --bg-tertiary: #334155;
+            --bg-card: #1E293B;
+            --text-primary: #F8FAFC;
+            --text-secondary: #94A3B8;
+            --text-muted: #64748B;
+            --border: #334155;
+            --border-light: rgba(148, 163, 184, 0.1);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            --sidebar-width: 260px;
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        /* Simplified Sidebar (same as main dashboard) */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            z-index: 100;
+        }
+        
+        .sidebar-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .sidebar-logo {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .sidebar-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        
+        .sidebar-brand {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary-light), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        /* Main Content */
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+        }
+        
+        .main-header {
+            position: sticky;
+            top: 0;
+            height: 70px;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 32px;
+            gap: 16px;
+            z-index: 50;
+        }
+        
+        .back-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .back-btn:hover {
+            background: var(--primary-bg);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        
+        .breadcrumb a {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        
+        .breadcrumb a:hover {
+            color: var(--primary);
+        }
+        
+        .breadcrumb .current {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        
+        .header-actions {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+        
+        .btn-outline:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        /* Content Area */
+        .content-area {
+            padding: 32px;
+        }
+        
+        /* Patient Header Card */
+        .patient-header-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            margin-bottom: 24px;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 32px;
+            align-items: center;
+        }
+        
+        .patient-avatar-lg {
+            width: 100px;
+            height: 100px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 36px;
+            font-weight: 600;
+        }
+        
+        .patient-info-main h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .patient-id-lg {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--text-muted);
+            background: var(--bg-tertiary);
+            padding: 4px 12px;
+            border-radius: 6px;
+            display: inline-block;
+            margin-bottom: 16px;
+        }
+        
+        .patient-meta {
+            display: flex;
+            gap: 24px;
+        }
+        
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        
+        .meta-item i {
+            color: var(--primary);
+        }
+        
+        .patient-stats {
+            display: flex;
+            gap: 24px;
+        }
+        
+        .patient-stat {
+            text-align: center;
+            padding: 16px 24px;
+            background: var(--bg-tertiary);
+            border-radius: 12px;
+            min-width: 100px;
+        }
+        
+        .patient-stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .patient-stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 0;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+        }
+        
+        .tab:hover {
+            color: var(--text-primary);
+        }
+        
+        .tab.active {
+            color: var(--primary);
+        }
+        
+        .tab.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--primary);
+            border-radius: 2px 2px 0 0;
+        }
+        
+        .tab-badge {
+            background: var(--primary-bg);
+            color: var(--primary);
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+        
+        /* Content Grid */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 24px;
+        }
+        
+        .section-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        /* Timeline */
+        .timeline {
+            padding: 24px;
+        }
+        
+        .timeline-item {
+            display: flex;
+            gap: 16px;
+            padding-bottom: 24px;
+            position: relative;
+        }
+        
+        .timeline-item:last-child {
+            padding-bottom: 0;
+        }
+        
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 19px;
+            top: 40px;
+            bottom: 0;
+            width: 2px;
+            background: var(--border);
+        }
+        
+        .timeline-item:last-child::before {
+            display: none;
+        }
+        
+        .timeline-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            z-index: 1;
+        }
+        
+        .timeline-icon.critical {
+            background: var(--critical-bg);
+            color: var(--critical);
+        }
+        
+        .timeline-icon.urgent {
+            background: var(--urgent-bg);
+            color: var(--urgent);
+        }
+        
+        .timeline-icon.routine {
+            background: var(--routine-bg);
+            color: var(--routine);
+        }
+        
+        .timeline-icon.pending {
+            background: var(--pending-bg);
+            color: var(--pending);
+        }
+        
+        .timeline-content {
+            flex: 1;
+        }
+        
+        .timeline-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        
+        .timeline-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .timeline-time {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .timeline-modality {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        
+        .timeline-finding {
+            background: var(--bg-tertiary);
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+        
+        .timeline-finding-label {
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .timeline-finding-value {
+            font-weight: 500;
+        }
+        
+        .timeline-confidence {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .confidence-bar-sm {
+            width: 80px;
+            height: 4px;
+            background: var(--bg-primary);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .confidence-bar-fill-sm {
+            height: 100%;
+            border-radius: 2px;
+        }
+        
+        .timeline-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        
+        .timeline-action-btn {
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .timeline-action-btn:hover {
+            background: var(--primary-bg);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        
+        /* Right Sidebar */
+        .sidebar-section {
+            padding: 20px 24px;
+        }
+        
+        .sidebar-section + .sidebar-section {
+            border-top: 1px solid var(--border);
+        }
+        
+        .sidebar-section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-light);
+            font-size: 14px;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            color: var(--text-muted);
+        }
+        
+        .info-value {
+            font-weight: 500;
+        }
+        
+        /* Pathology Summary */
+        .pathology-summary {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .pathology-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .pathology-badge {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+        
+        .pathology-badge.critical { background: var(--critical); }
+        .pathology-badge.urgent { background: var(--urgent); }
+        .pathology-badge.routine { background: var(--routine); }
+        
+        .pathology-name {
+            flex: 1;
+            font-size: 13px;
+        }
+        
+        .pathology-count {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+        
+        /* Notes */
+        .notes-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .note-item {
+            background: var(--bg-tertiary);
+            padding: 12px 16px;
+            border-radius: 8px;
+        }
+        
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .note-author {
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .note-date {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .note-text {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+        
+        .add-note-btn {
+            width: 100%;
+            padding: 12px;
+            background: transparent;
+            border: 1px dashed var(--border);
+            border-radius: 8px;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .add-note-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-bg);
+        }
+    </style>
+</head>
+<body>
+    <!-- Simplified Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <img src="assets/scanguru-mark.png" alt="ScanGuru">
+            </div>
+            <span class="sidebar-brand">ScanGuru</span>
+        </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <header class="main-header">
+            <button class="back-btn" onclick="history.back()">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <div class="breadcrumb">
+                <a href="dashboard-main.html">Dashboard</a>
+                <i class="fas fa-chevron-right" style="font-size: 10px;"></i>
+                <a href="#">Patients</a>
+                <i class="fas fa-chevron-right" style="font-size: 10px;"></i>
+                <span class="current">Maria Johnson</span>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-outline">
+                    <i class="fas fa-print"></i>
+                    Print
+                </button>
+                <button class="btn btn-outline">
+                    <i class="fas fa-share-alt"></i>
+                    Share
+                </button>
+                <button class="btn btn-primary" id="new-study-btn">
+                    <i class="fas fa-plus"></i>
+                    New Study
+                </button>
+            </div>
+        </header>
+        
+        <div class="content-area">
+            <!-- Patient Header Card -->
+            <div class="patient-header-card">
+                <div class="patient-avatar-lg" id="patient-avatar">--</div>
+                <div class="patient-info-main">
+                    <h1 id="patient-name">Loading…</h1>
+                    <div class="patient-id-lg" id="patient-visible-id">&nbsp;</div>
+                    <div class="patient-meta">
+                        <div class="meta-item">
+                            <i class="fas fa-birthday-cake"></i>
+                            <span id="meta-age">—</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-venus-mars"></i>
+                            <span id="meta-sex">—</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-id-card"></i>
+                            <span id="meta-mrn">—</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-user-md"></i>
+                            <span id="meta-doctor">—</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="patient-stats">
+                    <div class="patient-stat">
+                        <div class="patient-stat-value" id="stat-total">—</div>
+                        <div class="patient-stat-label">Total Studies</div>
+                    </div>
+                    <div class="patient-stat">
+                        <div class="patient-stat-value" id="stat-critical">—</div>
+                        <div class="patient-stat-label">Critical</div>
+                    </div>
+                    <div class="patient-stat">
+                        <div class="patient-stat-value" id="stat-modalities">—</div>
+                        <div class="patient-stat-label">Modalities</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active">
+                    Study History
+                    <span class="tab-badge" id="tab-count">0</span>
+                </button>
+                <button class="tab">Reports</button>
+                <button class="tab">Demographics</button>
+                <button class="tab">Insurance</button>
+                <button class="tab">Notes</button>
+            </div>
+            
+            <!-- Content Grid -->
+            <div class="content-grid">
+                <!-- Timeline -->
+                <div class="section-card">
+                    <div class="section-header">
+                        <h2 class="section-title">Study Timeline</h2>
+                        <select style="background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; color: var(--text-primary); font-size: 13px;">
+                            <option>All Modalities</option>
+                            <option>Mammography</option>
+                            <option>Chest X-Ray</option>
+                            <option>CT Scans</option>
+                        </select>
+                    </div>
+                    
+                    <div class="timeline" id="timeline-body">
+                        <div style="padding:48px;text-align:center;color:var(--text-muted);">Loading studies…</div>
+                    </div>
+                </div>
+                
+                <!-- Right Sidebar -->
+                <div style="display: flex; flex-direction: column; gap: 24px;">
+                    <!-- Patient Details -->
+                    <div class="section-card">
+                        <div class="sidebar-section">
+                            <div class="sidebar-section-title">Patient Details</div>
+                            <div class="info-row">
+                                <span class="info-label">Date of Birth</span>
+                                <span class="info-value" id="info-dob">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Sex</span>
+                                <span class="info-value" id="info-sex">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">MRN</span>
+                                <span class="info-value" id="info-mrn">—</span>
+                            </div>
+                        </div>
+
+                        <div class="sidebar-section">
+                            <div class="sidebar-section-title">Contact Information</div>
+                            <div class="info-row">
+                                <span class="info-label">Phone</span>
+                                <span class="info-value" id="info-phone">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Email</span>
+                                <span class="info-value" id="info-email">—</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Address</span>
+                                <span class="info-value" id="info-address">—</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Historical Findings (derived from studies) -->
+                    <div class="section-card">
+                        <div class="sidebar-section">
+                            <div class="sidebar-section-title">Historical Findings</div>
+                            <div class="pathology-summary" id="findings-summary">
+                                <div style="color:var(--text-muted);font-size:13px;padding:8px 0;">No findings yet.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Clinical Notes (Notes router coming in next step) -->
+                    <div class="section-card">
+                        <div class="sidebar-section">
+                            <div class="sidebar-section-title">Clinical Notes</div>
+                            <div class="notes-list" id="notes-list">
+                                <div style="color:var(--text-muted);font-size:13px;padding:8px 0;">
+                                    Notes endpoint not wired yet — coming soon.
+                                </div>
+                                <button class="add-note-btn" disabled title="Available once the notes CRUD endpoints are added">
+                                    <i class="fas fa-plus"></i>
+                                    Add Clinical Note
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    <!-- =========================================================
+         ScanGuru patient-detail wiring
+         Loads via:  patient-detail.html?patient=<uuid>
+                  or patient-detail.html?study=<uuid> (resolves to patient)
+         ========================================================= -->
+    <script>
+    (function() {
+        const API_BASE = 'http://localhost:8001/api/v1';
+        const token = sessionStorage.getItem('scanguru_token');
+        if (!token) { window.location.href = 'portal-login.html'; return; }
+
+        function authed(path, opts = {}) {
+            const headers = Object.assign({ 'Authorization': 'Bearer ' + token }, opts.headers || {});
+            return fetch(API_BASE + path, Object.assign({}, opts, { headers }));
+        }
+        async function fetchJSON(path) {
+            const r = await authed(path);
+            if (r.status === 401) {
+                sessionStorage.removeItem('scanguru_token');
+                window.location.href = 'portal-login.html';
+                throw new Error('unauthenticated');
+            }
+            if (!r.ok) throw new Error('HTTP ' + r.status + ' for ' + path);
+            return r.json();
+        }
+
+        // --- Helpers ---
+        function initials(name) {
+            if (!name) return '--';
+            const parts = name.replace(/^Dr\.?\s+/i, '').trim().split(/\s+/);
+            return ((parts[0] || '')[0] || '').toUpperCase()
+                 + ((parts[parts.length - 1] || '')[0] || '').toUpperCase();
+        }
+        function fmtDate(iso) {
+            if (!iso) return '—';
+            const d = new Date(iso);
+            return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+        function fmtDateTime(iso) {
+            if (!iso) return '';
+            const d = new Date(iso);
+            const today = new Date();
+            const sameDay = d.toDateString() === today.toDateString();
+            const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+            return sameDay ? `Today, ${time}` : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + `, ${time}`;
+        }
+        function ageFromDob(iso) {
+            if (!iso) return null;
+            const d = new Date(iso);
+            const diff = Date.now() - d.getTime();
+            return Math.floor(diff / (1000 * 60 * 60 * 24 * 365.25));
+        }
+
+        const MODALITY_ICONS = {
+            CXR: 'fa-lungs', CT_BRAIN: 'fa-brain', CT_CHEST: 'fa-lungs',
+            MAMMO: 'fa-ribbon', DENTAL: 'fa-tooth', MSK: 'fa-bone',
+            MRI_SPINE: 'fa-bone', MRI_KNEE: 'fa-bone', MRI_PROSTATE: 'fa-bone',
+            MRI_BREAST: 'fa-ribbon', MRI_CARDIAC: 'fa-heart', MRI_SHOULDER: 'fa-bone',
+            US: 'fa-wave-square', PET: 'fa-atom'
+        };
+        const URGENCY_CLASS = { stat: 'critical', urgent: 'urgent', routine: 'routine' };
+
+        function renderTimelineItem(s) {
+            const icon = MODALITY_ICONS[s.modality] || 'fa-file-medical';
+            const urgCls = URGENCY_CLASS[s.urgency] || 'routine';
+            const conf = s.confidence == null ? null : Math.round(s.confidence * 100);
+            const finding = s.primary_finding || (s.status === 'failed' ? '<em>Analysis failed</em>' : '—');
+
+            return ''
+              + '<div class="timeline-item">'
+              +   '<div class="timeline-icon ' + urgCls + '"><i class="fas ' + icon + '"></i></div>'
+              +   '<div class="timeline-content">'
+              +     '<div class="timeline-header">'
+              +       '<span class="timeline-title">' + s.modality.replace(/_/g, ' ') + '</span>'
+              +       '<span class="timeline-time">' + fmtDateTime(s.study_datetime) + '</span>'
+              +     '</div>'
+              +     '<div class="timeline-modality">Status: ' + s.status.replace(/_/g, ' ') + '</div>'
+              +     '<div class="timeline-finding">'
+              +       '<div class="timeline-finding-label">AI Finding</div>'
+              +       '<div class="timeline-finding-value">' + finding + '</div>'
+              +       (conf != null ? '<div class="timeline-finding-meta">Confidence: ' + conf + '%</div>' : '')
+              +     '</div>'
+              +     (s.status === 'failed' ? '' :
+                  '<button class="view-report-btn" data-pdf="' + s.id + '">'
+                + '<i class="fas fa-file-pdf"></i> View Report</button>')
+              +   '</div>'
+              + '</div>';
+        }
+
+        function renderFindingsSummary(studies) {
+            const counts = {};
+            for (const s of studies) {
+                if (!s.primary_finding) continue;
+                const key = s.primary_finding;
+                if (!counts[key]) counts[key] = { count: 0, urgency: s.urgency };
+                counts[key].count++;
+            }
+            const entries = Object.entries(counts).sort((a, b) => b[1].count - a[1].count).slice(0, 6);
+            if (!entries.length) {
+                return '<div style="color:var(--text-muted);font-size:13px;padding:8px 0;">No findings yet.</div>';
+            }
+            return entries.map(([name, info]) => {
+                const cls = URGENCY_CLASS[info.urgency] || 'routine';
+                return '<div class="pathology-item">'
+                     +   '<div class="pathology-badge ' + cls + '"></div>'
+                     +   '<span class="pathology-name">' + name.replace(/_/g, ' ') + '</span>'
+                     +   '<span class="pathology-count">' + info.count + '</span>'
+                     + '</div>';
+            }).join('');
+        }
+
+        function bindReportButtons(scope) {
+            scope.querySelectorAll('[data-pdf]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    try {
+                        const r = await authed('/studies/' + btn.dataset.pdf + '/report.pdf');
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        const blob = await r.blob();
+                        const url = URL.createObjectURL(blob);
+                        window.open(url, '_blank');
+                        setTimeout(() => URL.revokeObjectURL(url), 60000);
+                    } catch (e) { alert('Failed to load report: ' + e.message); }
+                });
+            });
+        }
+
+        // --- Resolve patient ID (from ?patient=... or ?study=...) ---
+        async function resolvePatientId() {
+            const params = new URLSearchParams(window.location.search);
+            const direct = params.get('patient');
+            if (direct) return direct;
+            const studyId = params.get('study');
+            if (studyId) {
+                const s = await fetchJSON('/studies/' + studyId);
+                return s.patient.id;
+            }
+            return null;
+        }
+
+        // --- Load and render ---
+        async function load() {
+            const patientId = await resolvePatientId();
+            if (!patientId) {
+                document.getElementById('patient-name').textContent = 'No patient selected';
+                document.getElementById('timeline-body').innerHTML =
+                    '<div style="padding:48px;text-align:center;color:var(--text-muted);">'
+                  + 'Open this page via a study or patient link from the dashboard.</div>';
+                return;
+            }
+
+            let data;
+            try {
+                data = await fetchJSON('/patients/' + patientId + '/timeline');
+            } catch (e) {
+                document.getElementById('patient-name').textContent = 'Patient not found';
+                console.error(e);
+                return;
+            }
+
+            const p = data.patient;
+
+            // Header
+            document.title = p.name + ' | ScanGuru';
+            document.getElementById('patient-name').textContent = p.name;
+            document.getElementById('patient-visible-id').textContent = p.visible_id;
+            document.getElementById('patient-avatar').textContent = initials(p.name);
+            const age = ageFromDob(p.dob);
+            document.getElementById('meta-age').textContent = age != null ? age + ' years old' : 'Age unknown';
+            document.getElementById('meta-sex').textContent = p.sex || '—';
+            document.getElementById('meta-mrn').textContent = 'MRN: ' + p.mrn;
+            document.getElementById('meta-doctor').textContent = '—';  // doctor assignment surface TBD
+
+            // Stats
+            document.getElementById('stat-total').textContent = data.total_studies;
+            document.getElementById('stat-critical').textContent = data.critical_count;
+            document.getElementById('stat-modalities').textContent = data.modalities_count;
+            document.getElementById('tab-count').textContent = data.total_studies;
+
+            // Sidebar — Patient Details
+            document.getElementById('info-dob').textContent = fmtDate(p.dob);
+            document.getElementById('info-sex').textContent = p.sex || '—';
+            document.getElementById('info-mrn').textContent = p.mrn;
+            document.getElementById('info-phone').textContent = p.phone || '—';
+            document.getElementById('info-email').textContent = p.email || '—';
+            document.getElementById('info-address').textContent = p.address || '—';
+
+            // Timeline
+            _allStudies = data.studies || [];
+            const tlBody = document.getElementById('timeline-body');
+            if (!data.studies.length) {
+                tlBody.innerHTML = '<div style="padding:48px;text-align:center;color:var(--text-muted);">No studies yet for this patient.</div>';
+            } else {
+                tlBody.innerHTML = data.studies.map(renderTimelineItem).join('');
+                bindReportButtons(tlBody);
+            }
+
+            // Findings summary
+            document.getElementById('findings-summary').innerHTML = renderFindingsSummary(data.studies);
+        }
+
+        // --- Tab switching ---
+        let _allStudies = [];
+        function setActiveTab(tabName) {
+            document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tabs .tab').forEach(t => {
+                if (t.textContent.trim().startsWith(tabName)) t.classList.add('active');
+            });
+            const tlBody = document.getElementById('timeline-body');
+            if (!tlBody) return;
+            if (tabName === 'Study History') {
+                renderTimeline(_allStudies);
+            } else if (tabName === 'Reports') {
+                const withPdf = _allStudies.filter(s => s.status === 'completed' || s.status === 'awaiting_review');
+                if (!withPdf.length) {
+                    tlBody.innerHTML = '<div style="padding:48px;text-align:center;color:var(--text-muted);">No completed reports yet.</div>';
+                } else {
+                    renderTimeline(withPdf);
+                }
+            } else if (tabName === 'Demographics') {
+                tlBody.innerHTML = '<div style="padding:32px;text-align:center;color:var(--text-muted);">'
+                                 + '<i class="fas fa-arrow-right" style="font-size:24px;margin-bottom:12px;display:block;"></i>'
+                                 + 'Patient demographics are shown in the right sidebar.</div>';
+            } else if (tabName === 'Insurance') {
+                tlBody.innerHTML = '<div style="padding:48px;text-align:center;color:var(--text-muted);">'
+                                 + '<i class="fas fa-shield-alt" style="font-size:24px;margin-bottom:12px;display:block;"></i>'
+                                 + 'Insurance management coming soon.<br><span style="font-size:13px;">Backend CRUD endpoints pending.</span></div>';
+            } else if (tabName === 'Notes') {
+                tlBody.innerHTML = '<div style="padding:48px;text-align:center;color:var(--text-muted);">'
+                                 + '<i class="fas fa-sticky-note" style="font-size:24px;margin-bottom:12px;display:block;"></i>'
+                                 + 'Clinical notes coming soon.<br><span style="font-size:13px;">Backend CRUD endpoints pending.</span></div>';
+            }
+        }
+        function renderTimeline(items) {
+            const tlBody = document.getElementById('timeline-body');
+            if (!items || !items.length) {
+                tlBody.innerHTML = '<div style="padding:48px;text-align:center;color:var(--text-muted);">No studies in this view.</div>';
+            } else {
+                tlBody.innerHTML = items.map(renderTimelineItem).join('');
+                bindReportButtons(tlBody);
+            }
+        }
+        document.querySelectorAll('.tabs .tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const label = tab.textContent.trim().split('\n')[0].trim();
+                // Strip the "Study History" prefix from the first tab (badge inside makes textContent include the number)
+                const tabName = label.startsWith('Study History') ? 'Study History' : label;
+                setActiveTab(tabName);
+            });
+        });
+
+        // --- New Study button → bounces to dashboard with action params ---
+        const newStudyBtn = document.getElementById('new-study-btn');
+        if (newStudyBtn) {
+            newStudyBtn.addEventListener('click', async () => {
+                const patientId = await resolvePatientId();
+                if (patientId) {
+                    window.location.href = 'dashboard-main.html?action=newstudy&patient=' + patientId;
+                } else {
+                    window.location.href = 'dashboard-main.html?action=newstudy';
+                }
+            });
+        }
+
+        load();
+    })();
+    </script>
+</body>
+</html>
