@@ -73,7 +73,8 @@ def root():
 # Returns HTTP 200 if all components healthy, HTTP 503 if any are down.
 # Always completes within ~6 seconds (5s for AI HTTP + 1s for DB query).
 # ============================================================================
-@app.get("/health/full")
+# PATCH:health-full-head v1 — accept HEAD too for UptimeRobot free tier
+@app.api_route("/health/full", methods=["GET", "HEAD"])
 def health_full():
     components = {}
     overall_ok = True
