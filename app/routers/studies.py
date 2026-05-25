@@ -8,7 +8,7 @@ from fastapi import (
     APIRouter, Depends, File, Form, HTTPException, Query, Request,
     UploadFile, status,
 )
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -292,10 +292,25 @@ def get_report_pdf(
         )
 
     # Cloud storage (firebase/s3): 302 to a short-lived signed URL.
-    url = storage.signed_url(r.pdf_key, ttl_seconds=900)
-    return RedirectResponse(url=url, status_code=302)
-
-
+    # PATCH:pdf-stream v1 — was RedirectResponse(signed_url). Browsers can't
+    # follow a 302 into Firebase signed URLs from a CORS fetch (Firebase
+    # doesn't send Access-Control-Allow-Origin headers). We stream the bytes
+    # back through this domain so CORS is satisfied by our own middleware.
+    try:
+        pdf_bytes = storage.get(r.pdf_key)
+    except Exception as exc:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            f"Failed to fetch report from storage: {exc}",
+        )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": 'inline; filename="report.pdf"',
+            "Cache-Control": "private, max-age=300",
+        },
+    )
 @router.post("/{study_id}/review")
 def review_study(
     study_id: uuid.UUID,
