@@ -34,7 +34,8 @@ app.include_router(studies_router.router, prefix="/api/v1/studies", tags=["studi
 app.include_router(patients_router.router, prefix="/api/v1/patients", tags=["patients"])
 
 
-@app.get("/health")
+# PATCH:health-head v1 — accept HEAD too so HEAD-only monitors don't 405
+@app.api_route("/health", methods=["GET", "HEAD"])
 def health():
     return {"status": "healthy", "service": "scanguru-portal", "version": "0.1.0"}
 
