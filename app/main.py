@@ -1,5 +1,6 @@
 """FastAPI entrypoint for the ScanGuru portal backend."""
 import logging
+import os
 
 # ============================================================================
 # PATCH:sentry-backend v1
@@ -7,9 +8,7 @@ import logging
 # SDK can hook middleware on app startup.
 # DSN is read from env var SENTRY_DSN. If unset, Sentry is a no-op.
 # ============================================================================
-import os as _sentry_os
-
-_sentry_dsn = _sentry_os.environ.get("SENTRY_DSN", "").strip()
+_sentry_dsn = os.environ.get("SENTRY_DSN", "").strip()
 if _sentry_dsn:
     import sentry_sdk as _sentry_sdk
     from sentry_sdk.integrations.fastapi import FastApiIntegration as _SentryFastApiIntegration
@@ -48,8 +47,8 @@ if _sentry_dsn:
 
     _sentry_sdk.init(
         dsn=_sentry_dsn,
-        environment=_sentry_os.environ.get("ENV", "prod"),
-        release=_sentry_os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")[:12],
+        environment=os.environ.get("ENV", "prod"),
+        release=os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")[:12],
         traces_sample_rate=0.10,
         profiles_sample_rate=0.0,
         send_default_pii=False,
@@ -130,12 +129,13 @@ def root():
 
 # ============================================================================
 # PATCH:health-full v1
-# Aggregate health check — covers portal, database, AI service.
+# Aggregate health check — covers portal, database, AI service, Redis.
 # Used by external uptime monitoring (UptimeRobot, BetterStack, etc.).
 # Returns HTTP 200 if all components healthy, HTTP 503 if any are down.
-# Always completes within ~6 seconds (5s for AI HTTP + 1s for DB query).
+# Always completes within ~7 seconds (5s AI HTTP + 1s DB + 1s Redis).
 # ============================================================================
 # PATCH:health-full-head v1 — accept HEAD too for UptimeRobot free tier
+# PATCH:health-full-redis v1 — added Redis ping
 @app.api_route("/health/full", methods=["GET", "HEAD"])
 def health_full():
     components = {}
@@ -180,6 +180,26 @@ def health_full():
         components["ai"] = {"status": "down", "url": ai_url, "error": str(exc)[:200]}
         overall_ok = False
 
+    # --- redis: PING with 1s timeout
+    redis_url = os.environ.get("REDIS_URL", "").strip()
+    if redis_url:
+        redis_start = _hf_datetime.now(_hf_timezone.utc)
+        try:
+            import redis as _hf_redis
+            _r = _hf_redis.from_url(
+                redis_url,
+                socket_connect_timeout=1.0,
+                socket_timeout=1.0,
+            )
+            _r.ping()
+            redis_ms = int((_hf_datetime.now(_hf_timezone.utc) - redis_start).total_seconds() * 1000)
+            components["redis"] = {"status": "up", "latency_ms": redis_ms}
+        except Exception as exc:
+            components["redis"] = {"status": "down", "error": str(exc)[:200]}
+            overall_ok = False
+    else:
+        components["redis"] = {"status": "not_configured"}
+
     payload = {
         "status": "healthy" if overall_ok else "degraded",
         "components": components,
@@ -188,4 +208,3 @@ def health_full():
     http_code = _hf_status.HTTP_200_OK if overall_ok else _hf_status.HTTP_503_SERVICE_UNAVAILABLE
     return _hf_JSONResponse(status_code=http_code, content=payload)
 # ==================== /PATCH:health-full v1 ====================
-
