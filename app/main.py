@@ -189,7 +189,3 @@ def health_full():
     return _hf_JSONResponse(status_code=http_code, content=payload)
 # ==================== /PATCH:health-full v1 ====================
 
-# PATCH:sentry-test — TEMPORARY. Used once to verify Sentry capture. Remove after.
-@app.get("/sentry-test")
-def _sentry_test():
-    raise RuntimeError("ScanGuru Sentry test — captured at " + __import__("datetime").datetime.utcnow().isoformat())
