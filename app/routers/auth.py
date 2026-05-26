@@ -16,9 +16,10 @@ from app.ratelimit import limiter, login_username_key  # PATCH:rate-limit v1
 router = APIRouter()
 
 
+# PATCH:rate-limit-decorator-fix v1 — corrected order: router on top
+@router.post("/login", response_model=TokenResponse)
 @limiter.limit("10/minute")  # PATCH:rate-limit v1 — IP-based
 @limiter.limit("5/minute", key_func=login_username_key)  # PATCH:rate-limit v1 — username-based
-@router.post("/login", response_model=TokenResponse)
 def login(
     body: LoginRequest,
     request: Request,
