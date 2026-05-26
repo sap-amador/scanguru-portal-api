@@ -1,6 +1,68 @@
 """FastAPI entrypoint for the ScanGuru portal backend."""
 import logging
 
+# ============================================================================
+# PATCH:sentry-backend v1
+# Sentry error monitoring. Must run BEFORE FastAPI app instantiation so the
+# SDK can hook middleware on app startup.
+# DSN is read from env var SENTRY_DSN. If unset, Sentry is a no-op.
+# ============================================================================
+import os as _sentry_os
+
+_sentry_dsn = _sentry_os.environ.get("SENTRY_DSN", "").strip()
+if _sentry_dsn:
+    import sentry_sdk as _sentry_sdk
+    from sentry_sdk.integrations.fastapi import FastApiIntegration as _SentryFastApiIntegration
+    from sentry_sdk.integrations.starlette import StarletteIntegration as _SentryStarletteIntegration
+    from sentry_sdk.integrations.sqlalchemy import SqlalchemyIntegration as _SentrySqlalchemyIntegration
+
+    # PHI scrubber — strip likely-sensitive data BEFORE the event leaves the process.
+    # This is belt-and-suspenders on top of send_default_pii=False.
+    _PHI_HEADER_KEYS = {"authorization", "cookie", "x-api-key", "set-cookie"}
+    _PHI_QUERY_KEYS = {"token", "access_token", "jwt", "mrn", "patient_id"}
+
+    def _scrub_event(event, hint):
+        try:
+            req = event.get("request") or {}
+            # Strip auth-like headers
+            headers = req.get("headers") or {}
+            if isinstance(headers, dict):
+                for k in list(headers.keys()):
+                    if k.lower() in _PHI_HEADER_KEYS:
+                        headers[k] = "[Filtered]"
+            # Strip auth-like query string params
+            qs = req.get("query_string")
+            if isinstance(qs, str):
+                for k in _PHI_QUERY_KEYS:
+                    qs = _re_sentry.sub(rf"({k}=)[^&]*", r"\1[Filtered]", qs, flags=_re_sentry.IGNORECASE)
+                req["query_string"] = qs
+            # Don't ship request bodies at all — they may contain MRN/name on uploads
+            if "data" in req:
+                req["data"] = "[Filtered]"
+        except Exception:
+            # Never let scrubbing throw — Sentry would silently drop the event
+            pass
+        return event
+
+    import re as _re_sentry
+
+    _sentry_sdk.init(
+        dsn=_sentry_dsn,
+        environment=_sentry_os.environ.get("ENV", "prod"),
+        release=_sentry_os.environ.get("RAILWAY_GIT_COMMIT_SHA", "unknown")[:12],
+        traces_sample_rate=0.10,
+        profiles_sample_rate=0.0,
+        send_default_pii=False,
+        max_breadcrumbs=50,
+        before_send=_scrub_event,
+        integrations=[
+            _SentryFastApiIntegration(transaction_style="endpoint"),
+            _SentryStarletteIntegration(transaction_style="endpoint"),
+            _SentrySqlalchemyIntegration(),
+        ],
+    )
+# ==================== /PATCH:sentry-backend v1 ====================
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
