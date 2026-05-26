@@ -97,6 +97,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ============================================================================
+# PATCH:rate-limit v1 — wire slowapi limiter, handler, and middleware
+# ============================================================================
+from slowapi.errors import RateLimitExceeded as _RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware as _SlowAPIMiddleware
+from app.ratelimit import limiter as _rate_limiter, rate_limit_exceeded_handler as _rate_limit_exceeded_handler
+
+app.state.limiter = _rate_limiter
+app.add_exception_handler(_RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(_SlowAPIMiddleware)
+# ==================== /PATCH:rate-limit v1 ====================
+
 app.include_router(auth_router.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(dashboard_router.router, prefix="/api/v1/dashboard", tags=["dashboard"])
 app.include_router(studies_router.router, prefix="/api/v1/studies", tags=["studies"])
