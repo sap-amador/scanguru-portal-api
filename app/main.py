@@ -78,6 +78,7 @@ from app.config import settings as _hf_settings
 from app.routers import dashboard as dashboard_router
 from app.routers import patients as patients_router
 from app.routers import studies as studies_router
+from metrics_public import router as metrics_router
 
 logging.basicConfig(level=logging.INFO)
 
@@ -113,6 +114,7 @@ app.include_router(auth_router.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(dashboard_router.router, prefix="/api/v1/dashboard", tags=["dashboard"])
 app.include_router(studies_router.router, prefix="/api/v1/studies", tags=["studies"])
 app.include_router(patients_router.router, prefix="/api/v1/patients", tags=["patients"])
+app.include_router(metrics_router, prefix="/api/v1", tags=["metrics"])
 
 
 # PATCH:health-head v1 — accept HEAD too so HEAD-only monitors don't 405
