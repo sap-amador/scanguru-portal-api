@@ -20,8 +20,9 @@ from app.crypto import encrypt, decrypt
 from app.database import get_db
 from app.models import (
     Study, Report, Patient, PatientAssignment, User,
-    StudyStatus, Urgency, Modality,
+    StudyStatus, Urgency, Modality, Org,
 )
+from app import quota
 from app.schemas import (
     StudyListResponse, StudyOut, StudyCreateResponse, PatientSummary, ReviewRequest,
 )
@@ -169,6 +170,25 @@ async def create_study(
 
     audit(db, current, "study.create", "study", study.id, ip=ip,
           extra={"modality": modality.value, "patient_id": str(patient.id)})
+
+    # --- Free-tier quota gate (Heal for All) ---------------------------------
+    # Bill the scan now that we're about to consume AI compute. Verified mission
+    # orgs get a soft limit (never blocked mid-care); others are hard-limited and
+    # get a 402 to upsell. usage_counters is the single honest source of truth.
+    org = db.get(Org, current.org_id)
+    q = quota.check_and_reserve(db, org)
+    if not q.ok:
+        study.status = StudyStatus.failed
+        db.commit()
+        audit(db, current, "study.quota_blocked", "study", study.id, success=False, ip=ip,
+              extra={"used": q.used, "quota": q.quota})
+        raise HTTPException(
+            status.HTTP_402_PAYMENT_REQUIRED,
+            detail={"reason": "monthly_quota_exceeded", "used": q.used, "quota": q.quota},
+        )
+    # q.warn (>=80%) and q.over (verified org past cap) are available if you want
+    # to surface a banner in the response later.
+    # -------------------------------------------------------------------------
 
     # --- Invoke AI service ---
     try:
