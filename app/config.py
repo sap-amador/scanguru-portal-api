@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     # CORS
     cors_allow_origins: str = "http://localhost:3000,https://scanguru.net,https://www.scanguru.net"
 
+    # Free tier ("Heal for All")
+    default_monthly_scan_quota: int = 100
+    warn_threshold: float = 0.80
+
     # Environment
     env: str = "dev"
 

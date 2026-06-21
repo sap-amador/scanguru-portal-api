@@ -78,6 +78,7 @@ from app.config import settings as _hf_settings
 from app.routers import dashboard as dashboard_router
 from app.routers import patients as patients_router
 from app.routers import studies as studies_router
+from app.routers import orgs as orgs_router
 from metrics_public import router as metrics_router
 
 logging.basicConfig(level=logging.INFO)
@@ -114,6 +115,7 @@ app.include_router(auth_router.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(dashboard_router.router, prefix="/api/v1/dashboard", tags=["dashboard"])
 app.include_router(studies_router.router, prefix="/api/v1/studies", tags=["studies"])
 app.include_router(patients_router.router, prefix="/api/v1/patients", tags=["patients"])
+app.include_router(orgs_router.router, prefix="/api/v1/orgs", tags=["orgs"])
 app.include_router(metrics_router, prefix="/api/v1", tags=["metrics"])
 
 
@@ -138,6 +140,9 @@ def root():
             "POST /api/v1/studies/{id}/review",
             "GET  /api/v1/patients/{id}",
             "GET  /api/v1/patients/{id}/timeline",
+            "GET  /api/v1/orgs/me",
+            "GET  /api/v1/orgs/me/usage",
+            "POST /api/v1/orgs/free-tier/apply",
         ],
     }
 

@@ -118,3 +118,29 @@ class PatientTimeline(BaseModel):
     critical_count: int
     modalities_count: int
     studies: list[TimelineStudy]
+
+
+# --- Org / Heal-for-All free tier ---
+class OrgOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    region: str
+    free_tier_type: str | None = None
+    free_tier_verified: bool
+    monthly_scan_quota: int
+
+    class Config:
+        from_attributes = True
+
+
+class UsageOut(BaseModel):
+    period_month: str
+    scans_used: int
+    quota: int
+    warn: bool
+    over: bool
+
+
+class FreeTierApplyIn(BaseModel):
+    free_tier_type: str          # low_income_country | rural_clinic | pediatric_oncology | charity
+    note: str | None = None
