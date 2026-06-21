@@ -1,11 +1,11 @@
 """SQLAlchemy 2.0 models for the ScanGuru portal backend."""
 from __future__ import annotations
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from enum import Enum as PyEnum
 
 from sqlalchemy import (
-    String, Text, DateTime, ForeignKey, Index, UniqueConstraint,
+    String, Text, DateTime, Date, ForeignKey, Index, UniqueConstraint,
     Enum as SAEnum, Float, Boolean, LargeBinary, Integer, func,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -77,6 +77,13 @@ class Org(Base):
         default=AccessMode.shared,
         server_default="shared",  # ensures existing rows backfill cleanly
     )
+    # --- Heal for All free tier ---
+    free_tier_type: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # low_income_country | rural_clinic | pediatric_oncology | charity
+    free_tier_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    free_tier_verified_by: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    free_tier_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    monthly_scan_quota: Mapped[int] = mapped_column(Integer, default=100, server_default="100")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     users: Mapped[list["User"]] = relationship(back_populates="org")
@@ -203,6 +210,15 @@ class VisibleIdCounter(Base):
     org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("orgs.id"), primary_key=True)
     year: Mapped[int] = mapped_column(Integer, primary_key=True)
     counter: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class UsageCounter(Base):
+    """Per-org, per-month scan tally. Enforces the free tier AND reports impact —
+    the single honest source of truth (no number is shown that wasn't recorded here)."""
+    __tablename__ = "usage_counters"
+    org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("orgs.id"), primary_key=True)
+    period_month: Mapped[date] = mapped_column(Date, primary_key=True)  # first day of month, UTC
+    scans_used: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 class AuditLog(Base):
