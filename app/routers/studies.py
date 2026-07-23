@@ -38,6 +38,58 @@ router = APIRouter()
 AI_JOB_POLL_INTERVAL_SECONDS = 2.0
 AI_JOB_MAX_WAIT_SECONDS = 45.0
 
+REPORT_VARIANTS = ("clinical", "research", "patient")
+
+
+def _variant_key(study: "Study", variant: str) -> str:
+    """Storage key for a non-default report variant of a study."""
+    return f"org_{study.org_id}/study_{study.id}/report_{variant}.pdf"
+
+
+def _await_prediction(prediction: dict) -> dict:
+    """Resolve an async job to a completed prediction. Raises AIServiceError."""
+    if not (prediction.get("async") and prediction.get("job_id")):
+        return prediction
+    job_id = str(prediction["job_id"])
+    deadline = time.monotonic() + AI_JOB_MAX_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        time.sleep(AI_JOB_POLL_INTERVAL_SECONDS)
+        job = poll_job(job_id)
+        state = str(job.get("status") or "").lower()
+        if state == "complete":
+            merged = dict(prediction)
+            merged.update(job)
+            return merged
+        if state == "error":
+            raise AIServiceError(str(job.get("error") or "AI job failed"))
+    raise AIServiceError("AI job timed out after %ss" % AI_JOB_MAX_WAIT_SECONDS)
+
+
+def _generate_variant(study: "Study", variant: str) -> bytes:
+    """Re-run the AI for a different report type and cache the PDF.
+
+    Uses the stored source image, so nothing extra is kept on the study. The
+    AI service currently re-runs its prediction per report type, so this is
+    the same cost as the original analysis; the result is cached in storage
+    so a given variant is only ever generated once per study.
+    """
+    storage = get_storage()
+    image_bytes = storage.get(study.source_image_key)
+    filename = study.source_image_key.rsplit("/", 1)[-1]
+
+    prediction = analyze_image(
+        image_bytes, filename, study.modality.value, {"report_type": variant},
+    )
+    prediction = _await_prediction(prediction)
+
+    pdf_url = prediction.get("pdf_url") or prediction.get("report_url")
+    if not pdf_url:
+        raise AIServiceError("AI service returned no PDF for report type '%s'" % variant)
+
+    pdf_bytes = fetch_pdf(pdf_url)
+    storage.put(pdf_bytes, _variant_key(study, variant), content_type="application/pdf")
+    return pdf_bytes
+
 
 def _row_to_study_out(s: Study, p: Patient, r: Optional[Report]) -> StudyOut:
     return StudyOut(
@@ -277,6 +329,11 @@ async def create_study(
     confidence = float(pred_payload.get("confidence") or 0.0)
     urgency_str = (pred_payload.get("urgency") or pred_payload.get("urgency_level") or "").upper()
 
+    # Remember which report type pdf_key holds, so the viewer can serve it
+    # directly instead of regenerating an identical PDF under a variant key.
+    if isinstance(prediction, dict):
+        prediction.setdefault("report_type", report_type)
+
     report = Report(
         study_id=study.id,
         prediction_json=prediction,
@@ -336,6 +393,7 @@ def get_report_pdf(
     request: Request,
     db: Annotated[Session, Depends(get_db)],
     current: Annotated[User, Depends(get_current_user)],
+    type: Optional[str] = Query(None, description="clinical | research | patient"),
 ):
     """Stream the PDF (local storage) or 302 to a signed URL (cloud). Audit every read."""
     row = db.execute(
@@ -349,16 +407,49 @@ def get_report_pdf(
     if not can_see_all_org_data(db, current) and s.assigned_radiologist != current.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not authorized for this report")
 
-    audit(db, current, "report.read", "report", r.id,
-          ip=request.client.host if request.client else None)
+    ip = request.client.host if request.client else None
+    audit(db, current, "report.read", "report", r.id, ip=ip,
+          extra={"report_type": type} if type else None)
 
     storage = get_storage()
+
+    # --- Which PDF are we serving? ---
+    # No ?type= -> the report generated at upload (unchanged behaviour).
+    pdf_key = r.pdf_key
+    variant = (type or "").strip().lower()
+    if variant:
+        if variant not in REPORT_VARIANTS:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Unknown report type '%s'. Expected one of: %s"
+                % (variant, ", ".join(REPORT_VARIANTS)),
+            )
+        stored = ""
+        if isinstance(r.prediction_json, dict):
+            stored = str(r.prediction_json.get("report_type") or "").lower()
+        if variant != stored:
+            pdf_key = _variant_key(s, variant)
+            try:
+                storage.get(pdf_key)          # already generated earlier
+            except Exception:
+                try:
+                    _generate_variant(s, variant)
+                except AIServiceError as exc:
+                    audit(db, current, "report.variant_failed", "report", r.id,
+                          success=False, ip=ip,
+                          extra={"report_type": variant, "error": str(exc)})
+                    raise HTTPException(
+                        status.HTTP_502_BAD_GATEWAY,
+                        "Could not generate the %s report: %s" % (variant, exc),
+                    )
+                audit(db, current, "report.variant_generated", "report", r.id, ip=ip,
+                      extra={"report_type": variant})
 
     # Local storage: stream the file inline. Browsers cannot open file:// URLs
     # from an http(s) origin, so signed_url() (which returns file://) is useless
     # in the browser. Stream directly instead.
     if isinstance(storage, LocalStorage):
-        path = storage._path(r.pdf_key)
+        path = storage._path(pdf_key)
         return FileResponse(
             path,
             media_type="application/pdf",
@@ -371,7 +462,7 @@ def get_report_pdf(
     # doesn't send Access-Control-Allow-Origin headers). We stream the bytes
     # back through this domain so CORS is satisfied by our own middleware.
     try:
-        pdf_bytes = storage.get(r.pdf_key)
+        pdf_bytes = storage.get(pdf_key)
     except Exception as exc:
         raise HTTPException(
             status.HTTP_502_BAD_GATEWAY,
