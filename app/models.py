@@ -86,7 +86,7 @@ class Org(Base):
     monthly_scan_quota: Mapped[int] = mapped_column(Integer, default=100, server_default="100")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    users: Mapped[list["User"]] = relationship(back_populates="org")
+    users: Mapped[list["User"]] = relationship(back_populates="org", foreign_keys="User.org_id")
 
 
 class User(Base):
@@ -104,7 +104,7 @@ class User(Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    org: Mapped["Org"] = relationship(back_populates="users")
+    org: Mapped["Org"] = relationship(back_populates="users", foreign_keys=[org_id])
 
 
 class Patient(Base):
