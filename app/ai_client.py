@@ -31,6 +31,26 @@ class AIServiceError(Exception):
     pass
 
 
+_IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".bmp", ".gif", ".webp", ".tif", ".tiff")
+
+
+def detect_input_type(filename: str | None) -> str:
+    """Classify an upload the same way the intake form does.
+
+    Returns one of: dicom_series | dicom_single | image.
+    Unknown extensions fall back to 'image' — that is what the AI service
+    assumes anyway, so this keeps behaviour unchanged for those.
+    """
+    name = (filename or "").lower()
+    if name.endswith(".zip"):
+        return "dicom_series"
+    if name.endswith(".dcm") or name.endswith(".dicom"):
+        return "dicom_single"
+    if name.endswith(_IMAGE_EXTS):
+        return "image"
+    return "image"
+
+
 def analyze_image(
     image_bytes: bytes,
     filename: str,
@@ -60,6 +80,7 @@ def analyze_image(
         "sex": str(meta.get("sex") or "Unknown"),
         "location": str(meta.get("location") or "Demo"),
         "report_type": report_type,
+        "input_type": detect_input_type(filename),
     }
     # `region` is used by MSK and a couple of other modalities. Pass through if given.
     if meta.get("region"):
