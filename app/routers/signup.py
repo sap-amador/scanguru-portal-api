@@ -5,7 +5,6 @@ notifies the approval inbox(es), and audits. Deliberately unauthenticated and
 rate-limited. Email is best-effort — a mail outage never fails the request, so
 the applicant always gets a clean confirmation and the row is always saved.
 """
-from __future__ import annotations
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request
