@@ -1,5 +1,6 @@
 """Studies endpoints: list, create (upload + AI), get, signed PDF, review."""
 import hashlib
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Annotated, Optional
@@ -13,7 +14,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.access import can_see_all_org_data
-from app.ai_client import analyze_image, fetch_pdf, AIServiceError
+from app.ai_client import analyze_image, fetch_pdf, poll_job, AIServiceError
 from app.audit import audit
 from app.auth import get_current_user
 from app.crypto import encrypt, decrypt
@@ -30,6 +31,12 @@ from app.storage import get_storage, LocalStorage, LocalStorage
 from app.utils.visible_id import next_visible_id
 
 router = APIRouter()
+
+# Slow modalities answer with a job id instead of a finished PDF. We poll
+# inline so the client still gets one complete response. Keep the ceiling
+# comfortably under the platform's request timeout.
+AI_JOB_POLL_INTERVAL_SECONDS = 2.0
+AI_JOB_MAX_WAIT_SECONDS = 45.0
 
 
 def _row_to_study_out(s: Study, p: Patient, r: Optional[Report]) -> StudyOut:
@@ -200,6 +207,53 @@ async def create_study(
         audit(db, current, "study.ai_failed", "study", study.id, success=False, ip=ip,
               extra={"error": str(e)})
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI service failed: {e}")
+
+    # --- Async job path (CT Chest, MRI, PET, Ultrasound) ---
+    # analyze_image returns {"async": true, "job_id": ...} for these; without
+    # polling the study would be saved with no PDF and report.pdf would 404.
+    if prediction.get("async") and prediction.get("job_id"):
+        job_id = str(prediction["job_id"])
+        deadline = time.monotonic() + AI_JOB_MAX_WAIT_SECONDS
+        completed = False
+        while time.monotonic() < deadline:
+            time.sleep(AI_JOB_POLL_INTERVAL_SECONDS)
+            try:
+                job = poll_job(job_id)
+            except AIServiceError as e:
+                study.status = StudyStatus.failed
+                db.commit()
+                audit(db, current, "study.ai_failed", "study", study.id, success=False, ip=ip,
+                      extra={"error": f"job poll failed: {e}", "job_id": job_id})
+                raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI service failed: {e}")
+
+            job_status = str(job.get("status") or "").lower()
+            if job_status == "complete":
+                # Merge rather than replace: keep any fields the initial
+                # response carried that the job payload omits.
+                merged = dict(prediction)
+                merged.update(job)
+                prediction = merged
+                completed = True
+                break
+            if job_status == "error":
+                study.status = StudyStatus.failed
+                db.commit()
+                audit(db, current, "study.ai_failed", "study", study.id, success=False, ip=ip,
+                      extra={"error": str(job.get("error") or "job failed"), "job_id": job_id})
+                raise HTTPException(
+                    status.HTTP_502_BAD_GATEWAY,
+                    f"AI analysis failed: {job.get('error') or 'unknown error'}",
+                )
+
+        if not completed:
+            study.status = StudyStatus.failed
+            db.commit()
+            audit(db, current, "study.ai_timeout", "study", study.id, success=False, ip=ip,
+                  extra={"job_id": job_id, "waited_seconds": AI_JOB_MAX_WAIT_SECONDS})
+            raise HTTPException(
+                status.HTTP_504_GATEWAY_TIMEOUT,
+                "AI analysis is taking longer than expected. Please try again.",
+            )
 
     # --- Re-store the PDF under portal-controlled key ---
     pdf_key = ""
