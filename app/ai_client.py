@@ -44,6 +44,12 @@ def analyze_image(
     """
     meta = meta or {}
     lang = str(meta.get("lang") or "en")
+    # Whitelist rather than pass through: keeps the value safe to interpolate
+    # into the query string and guards against a typo silently producing a
+    # different report than the clinician asked for.
+    report_type = str(meta.get("report_type") or "clinical").strip().lower()
+    if report_type not in ("clinical", "research", "patient"):
+        report_type = "clinical"
 
     files = {"file": (filename, image_bytes)}
     data: dict[str, str] = {
@@ -53,12 +59,16 @@ def analyze_image(
         "age": str(meta.get("age") or "45"),
         "sex": str(meta.get("sex") or "Unknown"),
         "location": str(meta.get("location") or "Demo"),
+        "report_type": report_type,
     }
     # `region` is used by MSK and a couple of other modalities. Pass through if given.
     if meta.get("region"):
         data["region"] = str(meta["region"])
 
-    url = f"{settings.ai_service_url.rstrip('/')}/predict_with_report?lang={lang}"
+    url = (
+        f"{settings.ai_service_url.rstrip('/')}/predict_with_report"
+        f"?lang={lang}&report_type={report_type}"
+    )
     try:
         with httpx.Client(timeout=settings.ai_service_timeout_seconds) as client:
             r = client.post(url, files=files, data=data)
