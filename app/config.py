@@ -37,6 +37,18 @@ class Settings(BaseSettings):
     default_monthly_scan_quota: int = 100
     warn_threshold: float = 0.80
 
+    # Email (SMTP; SES / SendGrid / Postmark / Gmail all speak SMTP)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "ScanGuru <no-reply@scanguru.ai>"
+    smtp_starttls: bool = True
+
+    # Signup / access requests
+    signup_notify_emails: str = "admin@scanguru.ai,sales@scanguru.ai"
+    portal_login_url: str = "https://portal.scanguru.net"
+
     # Environment
     env: str = "dev"
 
