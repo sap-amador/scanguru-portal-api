@@ -40,6 +40,11 @@ AI_JOB_MAX_WAIT_SECONDS = 45.0
 
 REPORT_VARIANTS = ("clinical", "research", "patient")
 
+# Labels that mean "the model produced no usable answer". "unknown" is this
+# module's own fallback a few lines below when the payload carries no
+# recognisable label field, so it belongs here too.
+NON_RESULT_LABELS = frozenset({"", "error", "unknown", "none", "null", "failed", "n/a"})
+
 
 def _parse_dob(raw: Optional[str]):
     """Parse a date of birth from the upload form.
@@ -401,6 +406,25 @@ async def create_study(
     )
     confidence = float(pred_payload.get("confidence") or 0.0)
     urgency_str = (pred_payload.get("urgency") or pred_payload.get("urgency_level") or "").upper()
+
+    # A 200 response does not mean a usable prediction. When the service
+    # answers with an error payload — or with nothing this code recognises as
+    # a label — treat it exactly like the transport failures above rather than
+    # storing it as a finding. Without this the study lands on the worklist as
+    # awaiting_review with "Error" where a diagnosis should be.
+    if pred_payload.get("error") or primary_finding.strip().lower() in NON_RESULT_LABELS:
+        study.status = StudyStatus.failed
+        db.commit()
+        audit(db, current, "study.ai_failed", "study", study.id, success=False, ip=ip,
+              extra={
+                  "reason": "no usable prediction in a 200 response",
+                  "label": primary_finding,
+                  "payload_excerpt": str(pred_payload)[:500],
+              })
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "AI service returned no usable prediction for this image.",
+        )
 
     # Remember which report type pdf_key holds, so the viewer can serve it
     # directly instead of regenerating an identical PDF under a variant key.
