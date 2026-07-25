@@ -76,9 +76,13 @@ def analyze_image(
         "modality": modality,
         "consent": "true",
         "name": str(meta.get("name") or "Patient"),
-        "age": str(meta.get("age") or "45"),
+        # Empty, not a plausible number: an invented age is
+        # indistinguishable from a recorded one once it is in the PDF.
+        "age": str(meta.get("age") or ""),
         "sex": str(meta.get("sex") or "Unknown"),
-        "location": str(meta.get("location") or "Demo"),
+        # The portal sends no location, so this was labelling every
+        # report it produced as coming from a site called "Demo".
+        "location": str(meta.get("location") or ""),
         "report_type": report_type,
         "input_type": detect_input_type(filename),
     }
