@@ -2,7 +2,7 @@
 import hashlib
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Annotated, Optional
 
 from fastapi import (
@@ -67,17 +67,20 @@ def _parse_dob(raw: Optional[str]):
         parsed = parsed.replace(tzinfo=timezone.utc)
     if parsed > datetime.now(timezone.utc):
         return None
-    return parsed
+    # Return a calendar date — patients.dob is a DATE column, and the time
+    # component was never meaningful.
+    return parsed.date()
 
 
 def _age_at(dob, when) -> Optional[int]:
-    """Whole years between dob and when. None if either is missing."""
+    """Whole years between dob and when. None if either is missing.
+
+    dob is a date and when is a timestamp, so this compares calendar fields
+    only. No timezone arithmetic — a birthday is not an instant, and pinning
+    it to one is what the DATE migration removed.
+    """
     if not dob or not when:
         return None
-    if dob.tzinfo is None:
-        dob = dob.replace(tzinfo=timezone.utc)
-    if when.tzinfo is None:
-        when = when.replace(tzinfo=timezone.utc)
     years = when.year - dob.year
     if (when.month, when.day) < (dob.month, dob.day):
         years -= 1

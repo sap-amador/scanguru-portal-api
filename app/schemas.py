@@ -1,6 +1,6 @@
 """Pydantic request and response models for all endpoints."""
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, EmailStr
 
@@ -57,7 +57,7 @@ class PatientOut(BaseModel):
     visible_id: str
     mrn: str
     name: str
-    dob: datetime | None = None
+    dob: date | None = None
     sex: str | None = None
     phone: str | None = None
     email: str | None = None

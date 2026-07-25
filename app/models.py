@@ -119,7 +119,10 @@ class Patient(Base):
     email_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     address_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     emergency_contact_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
-    dob: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # A calendar date, not an instant. As timestamptz this was stored at
+    # UTC midnight and rendered as the previous day in negative-offset
+    # timezones. See alembic revision b3e81f7c94a2.
+    dob: Mapped[date | None] = mapped_column(Date, nullable=True)
     sex: Mapped[str | None] = mapped_column(String(16), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

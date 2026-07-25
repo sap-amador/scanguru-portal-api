@@ -1,6 +1,6 @@
 """Patient endpoints: list, search, detail, timeline, create."""
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -80,7 +80,7 @@ class PatientListItem(BaseModel):
     visible_id: str
     name: str
     mrn: str
-    dob: Optional[datetime] = None
+    dob: Optional[date] = None
     sex: Optional[str] = None
     study_count: int
     last_study_at: Optional[datetime] = None
@@ -222,7 +222,7 @@ def create_patient(
     dob_value = None
     if body.dob:
         try:
-            dob_value = datetime.strptime(body.dob, "%Y-%m-%d")
+            dob_value = datetime.strptime(body.dob, "%Y-%m-%d").date()
         except ValueError:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "DOB must be YYYY-MM-DD")
 
