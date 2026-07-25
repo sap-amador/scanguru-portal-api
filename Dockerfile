@@ -21,4 +21,16 @@ USER appuser
 
 EXPOSE 8000
 
-CMD ["gunicorn", "-k", "uvicorn.workers.UvicornWorker", "-w", "2", "--timeout", "300", "-b", "0.0.0.0:8000", "app.main:app"]
+# Migrations run before the web server binds.
+#
+# Without this the container started gunicorn directly, so a deploy carrying a
+# new column came up green and then 500'd on every read — SQLAlchemy selects
+# every mapped column, so a column present in the model and absent from the
+# database breaks queries, not just writes.
+#
+# Shell form so `&&` is interpreted; `exec` so gunicorn replaces the shell as
+# PID 1 and keeps receiving Railway's stop signals. A failed migration now
+# blocks boot and shows as a failed deploy, which is the failure mode you want
+# over a healthy-looking service returning errors.
+CMD alembic upgrade head && \
+    exec gunicorn -k uvicorn.workers.UvicornWorker -w 2 --timeout 300 -b 0.0.0.0:8000 app.main:app
