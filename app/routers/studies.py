@@ -41,6 +41,44 @@ AI_JOB_MAX_WAIT_SECONDS = 45.0
 REPORT_VARIANTS = ("clinical", "research", "patient")
 
 
+def _parse_dob(raw: Optional[str]):
+    """Parse a date of birth from the upload form.
+
+    Accepts YYYY-MM-DD (what <input type="date"> submits) and full ISO
+    timestamps. Returns None for anything unparseable rather than raising:
+    a malformed date should not cost a clinician their scan. Future dates are
+    rejected — they are always data entry errors, never a real birth date.
+    """
+    if not raw:
+        return None
+    text = str(raw).strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    if parsed > datetime.now(timezone.utc):
+        return None
+    return parsed
+
+
+def _age_at(dob, when) -> Optional[int]:
+    """Whole years between dob and when. None if either is missing."""
+    if not dob or not when:
+        return None
+    if dob.tzinfo is None:
+        dob = dob.replace(tzinfo=timezone.utc)
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    years = when.year - dob.year
+    if (when.month, when.day) < (dob.month, dob.day):
+        years -= 1
+    return years if years >= 0 else None
+
+
 def _variant_key(study: "Study", variant: str) -> str:
     """Storage key for a non-default report variant of a study."""
     return f"org_{study.org_id}/study_{study.id}/report_{variant}.pdf"
@@ -159,6 +197,7 @@ async def create_study(
     mrn: Optional[str] = Form(None),
     name: Optional[str] = Form(None),
     age: Optional[int] = Form(None),
+    dob: Optional[str] = Form(None),
     sex: Optional[str] = Form(None),
     urgency: Urgency = Form(Urgency.routine),
     lang: str = Form("en"),
@@ -193,6 +232,7 @@ async def create_study(
                 visible_id=next_visible_id(db, current.org_id),
                 mrn=mrn,
                 name_encrypted=encrypt(name),
+                dob=_parse_dob(dob),
                 sex=sex,
                 created_by=current.id,
             )
@@ -205,6 +245,15 @@ async def create_study(
                 assigned_by=current.id,
                 assignment_type="primary",
             ))
+        else:
+            # Backfill only. An existing record's demographics are never
+            # overwritten from an upload form: the first entry is the one a
+            # clinician verified, and a later typo shouldn't silently replace it.
+            parsed_dob = _parse_dob(dob)
+            if parsed_dob and patient.dob is None:
+                patient.dob = parsed_dob
+            if sex and not patient.sex:
+                patient.sex = sex
 
     # --- Upload source image to storage ---
     storage = get_storage()
@@ -251,7 +300,10 @@ async def create_study(
 
     # --- Invoke AI service ---
     try:
-        meta = {"name": name, "age": age, "sex": sex, "lang": lang, "report_type": report_type, "region": region}
+        # The PDF prints an age. Prefer the age the DOB implies at scan time —
+        # a stored age drifts, a DOB does not.
+        meta_age = _age_at(patient.dob, study.study_datetime) if patient.dob else age
+        meta = {"name": name, "age": meta_age, "sex": sex, "lang": lang, "report_type": report_type, "region": region}
         prediction = analyze_image(image_bytes, file.filename or "upload", modality.value, meta)
     except AIServiceError as e:
         study.status = StudyStatus.failed
