@@ -81,6 +81,11 @@ class StudyOut(BaseModel):
     primary_finding: str | None = None
     confidence: float | None = None
     study_datetime: datetime
+    # Who referred the patient in. Free text, external clinician.
+    referring_physician: str | None = None
+    # Which variant Report.pdf_key holds. None for reports generated before
+    # create_study started recording it — the UI must not assume a default.
+    report_type: str | None = None
 
 
 class StudyListResponse(BaseModel):
@@ -110,6 +115,8 @@ class TimelineStudy(BaseModel):
     urgency: Urgency
     status: StudyStatus
     study_datetime: datetime
+    referring_physician: str | None = None
+    report_type: str | None = None
 
 
 class PatientTimeline(BaseModel):

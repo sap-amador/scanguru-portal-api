@@ -23,6 +23,23 @@ router = APIRouter()
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _report_type(r) -> Optional[str]:
+    """Which report variant Report.pdf_key actually holds.
+
+    create_study records this in prediction_json. Reports generated before
+    that was added carry no marker, and this returns None rather than
+    assuming "clinical" — the UI renders its variant chips neutral on None
+    instead of claiming a variant was generated when we do not know.
+    """
+    if r is None:
+        return None
+    payload = getattr(r, "prediction_json", None)
+    if not isinstance(payload, dict):
+        return None
+    value = payload.get("report_type")
+    return str(value).lower() if value else None
+
+
 def _patient_to_out(p: Patient) -> PatientOut:
     """Convert a Patient row to the API response shape, decrypting PHI."""
     return PatientOut(
@@ -313,6 +330,8 @@ def patient_timeline(
             urgency=s.urgency,
             status=s.status,
             study_datetime=s.study_datetime,
+            referring_physician=s.referring_physician,
+            report_type=_report_type(r),
         ))
         modalities.add(s.modality.value)
         if s.status.value == "critical":

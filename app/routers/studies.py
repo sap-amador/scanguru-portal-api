@@ -129,6 +129,23 @@ def _generate_variant(study: "Study", variant: str) -> bytes:
     return pdf_bytes
 
 
+def _report_type(r) -> Optional[str]:
+    """Which report variant Report.pdf_key actually holds.
+
+    create_study records this in prediction_json. Reports generated before
+    that was added carry no marker, and this returns None rather than
+    assuming "clinical" — the UI renders its variant chips neutral on None
+    instead of claiming a variant was generated when we do not know.
+    """
+    if r is None:
+        return None
+    payload = getattr(r, "prediction_json", None)
+    if not isinstance(payload, dict):
+        return None
+    value = payload.get("report_type")
+    return str(value).lower() if value else None
+
+
 def _row_to_study_out(s: Study, p: Patient, r: Optional[Report]) -> StudyOut:
     return StudyOut(
         id=s.id,
@@ -143,6 +160,8 @@ def _row_to_study_out(s: Study, p: Patient, r: Optional[Report]) -> StudyOut:
         primary_finding=r.primary_finding if r else None,
         confidence=r.confidence if r else None,
         study_datetime=s.study_datetime,
+        referring_physician=s.referring_physician,
+        report_type=_report_type(r),
     )
 
 
