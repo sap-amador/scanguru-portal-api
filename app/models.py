@@ -153,6 +153,11 @@ class Study(Base):
     urgency: Mapped[Urgency] = mapped_column(SAEnum(Urgency), default=Urgency.routine, index=True)
     ordered_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"))
     assigned_radiologist: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    # Who sent the patient in. Usually external (a GP or referring clinic) and
+    # therefore not a portal user, so this is free text rather than a FK.
+    # PatientAssignment covers the separate question of which internal user
+    # owns the patient.
+    referring_physician: Mapped[str | None] = mapped_column(String(200), nullable=True)
     source_image_key: Mapped[str] = mapped_column(Text)            # storage key, not URL
     source_image_sha256: Mapped[str] = mapped_column(String(64))   # cache key + integrity
     study_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

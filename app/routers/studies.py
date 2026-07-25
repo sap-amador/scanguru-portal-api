@@ -200,6 +200,7 @@ async def create_study(
     dob: Optional[str] = Form(None),
     sex: Optional[str] = Form(None),
     urgency: Urgency = Form(Urgency.routine),
+    referring_physician: Optional[str] = Form(None),
     lang: str = Form("en"),
     report_type: str = Form("clinical"),
     region: Optional[str] = Form(None),
@@ -270,6 +271,7 @@ async def create_study(
         urgency=urgency,
         ordered_by=current.id,
         assigned_radiologist=current.id,
+        referring_physician=(referring_physician or "").strip() or None,
         source_image_key=source_key,
         source_image_sha256=image_sha,
     )
