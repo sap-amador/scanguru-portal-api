@@ -75,11 +75,13 @@ def analyze_image(
     data: dict[str, str] = {
         "modality": modality,
         "consent": "true",
-        "name": str(meta.get("name") or "Patient"),
+        "name": str(meta.get("name") or ""),
         # Empty, not a plausible number: an invented age is
         # indistinguishable from a recorded one once it is in the PDF.
-        "age": str(meta.get("age") or ""),
-        "sex": str(meta.get("sex") or "Unknown"),
+        # Checked against None rather than falsiness: `or ""` treats a
+        # genuine age of 0 as missing, blanking it for infants.
+        "age": "" if meta.get("age") is None else str(meta.get("age")),
+        "sex": str(meta.get("sex") or ""),
         # The portal sends no location, so this was labelling every
         # report it produced as coming from a site called "Demo".
         "location": str(meta.get("location") or ""),

@@ -332,7 +332,18 @@ async def create_study(
         # The PDF prints an age. Prefer the age the DOB implies at scan time —
         # a stored age drifts, a DOB does not.
         meta_age = _age_at(patient.dob, study.study_datetime) if patient.dob else age
-        meta = {"name": name, "age": meta_age, "sex": sex, "lang": lang, "report_type": report_type, "region": region}
+        # Source demographics from the resolved patient record, not the
+        # upload form. When a study is created with patient_id, name and
+        # sex are not submitted at all, so the report would carry
+        # placeholders instead of the patient's own details.
+        meta = {
+            "name": decrypt(patient.name_encrypted) or name or "",
+            "age": meta_age,
+            "sex": patient.sex or sex,
+            "lang": lang,
+            "report_type": report_type,
+            "region": region,
+        }
         prediction = analyze_image(image_bytes, file.filename or "upload", modality.value, meta)
     except AIServiceError as e:
         study.status = StudyStatus.failed
