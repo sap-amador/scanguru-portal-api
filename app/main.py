@@ -81,6 +81,7 @@ from app.routers import studies as studies_router
 from app.routers import orgs as orgs_router
 from app.routers import signup as signup_router
 from app.routers import account as account_router
+from app.routers import users as users_router
 from metrics_public import router as metrics_router
 
 logging.basicConfig(level=logging.INFO)
@@ -120,6 +121,7 @@ app.include_router(patients_router.router, prefix="/api/v1/patients", tags=["pat
 app.include_router(orgs_router.router, prefix="/api/v1/orgs", tags=["orgs"])
 app.include_router(signup_router.router, prefix="/api/v1/signup", tags=["signup"])
 app.include_router(account_router.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(users_router.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(metrics_router, prefix="/api/v1", tags=["metrics"])
 
 
@@ -144,6 +146,8 @@ def root():
             "POST /api/v1/studies/{id}/review",
             "GET  /api/v1/patients/{id}",
             "GET  /api/v1/patients/{id}/timeline",
+            "POST /api/v1/patients/{id}/assign",
+            "GET  /api/v1/users",
             "GET  /api/v1/orgs/me",
             "GET  /api/v1/orgs/me/usage",
             "POST /api/v1/orgs/free-tier/apply",

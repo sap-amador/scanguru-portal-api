@@ -1,6 +1,6 @@
 """Patient endpoints: list, search, detail, timeline, create."""
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Annotated, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -12,7 +12,7 @@ from app.auth import get_current_user
 from app.crypto import decrypt, encrypt
 from app.database import get_db
 from app.models import Patient, PatientAssignment, Study, Report, User, UserRole
-from app.schemas import PatientOut, PatientTimeline, TimelineStudy
+from app.schemas import AssignedUserOut, PatientOut, PatientTimeline, TimelineStudy
 from app.utils.visible_id import next_visible_id
 
 
@@ -53,6 +53,26 @@ def _patient_to_out(p: Patient) -> PatientOut:
         email=decrypt(p.email_encrypted) if getattr(p, "email_encrypted", None) else None,
         address=decrypt(p.address_encrypted) if getattr(p, "address_encrypted", None) else None,
     )
+
+
+def _current_assignee(db: Session, patient_id: uuid.UUID) -> Optional[User]:
+    """The user holding the live primary assignment, or None.
+
+    Returns None rather than falling back to whoever created the patient — an
+    unassigned patient should read as unassigned, not as belonging to the
+    person who happened to run the upload.
+    """
+    row = db.execute(
+        select(User)
+        .join(PatientAssignment, PatientAssignment.doctor_user_id == User.id)
+        .where(
+            PatientAssignment.patient_id == patient_id,
+            PatientAssignment.assignment_type == "primary",
+            PatientAssignment.revoked_at.is_(None),
+        )
+        .order_by(PatientAssignment.assigned_at.desc())
+    ).scalars().first()
+    return row
 
 
 def _assert_access(db: Session, current: User, patient_id: uuid.UUID, patient: Patient) -> None:
@@ -337,10 +357,101 @@ def patient_timeline(
         if s.status.value == "critical":
             critical_count += 1
 
+    assignee = _current_assignee(db, patient_id)
+
     return PatientTimeline(
         patient=_patient_to_out(patient),
+        assigned_to=(
+            AssignedUserOut(id=assignee.id, full_name=assignee.full_name, role=assignee.role)
+            if assignee else None
+        ),
         total_studies=len(timeline),
         critical_count=critical_count,
         modalities_count=len(modalities),
         studies=timeline,
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /patients/{id}/assign — set or clear the primary clinician
+# ---------------------------------------------------------------------------
+
+class AssignIn(BaseModel):
+    doctor_user_id: Optional[uuid.UUID] = None   # null clears the assignment
+
+
+@router.post("/{patient_id}/assign")
+def assign_patient(
+    patient_id: uuid.UUID,
+    body: AssignIn,
+    request: Request,
+    db: Annotated[Session, Depends(get_db)],
+    current: Annotated[User, Depends(get_current_user)],
+):
+    """Set the primary clinician for a patient, or clear it with a null id.
+
+    The previous assignment is revoked, not deleted: PatientAssignment carries
+    revoked_at precisely so a record can show who held a patient and when that
+    changed. Deleting the row would erase that.
+    """
+    patient = db.get(Patient, patient_id)
+    if not patient:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Patient not found")
+    _assert_access(db, current, patient_id, patient)
+
+    if current.role not in (UserRole.admin, UserRole.radiologist, UserRole.technologist):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Insufficient role to assign patients")
+
+    target: Optional[User] = None
+    if body.doctor_user_id is not None:
+        target = db.get(User, body.doctor_user_id)
+        # Same 404 for "no such user" and "user in another org" — a caller
+        # should not be able to probe for accounts outside their organisation.
+        if not target or target.org_id != current.org_id or not target.is_active:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found in this organisation")
+
+    live = db.execute(
+        select(PatientAssignment).where(
+            PatientAssignment.patient_id == patient_id,
+            PatientAssignment.assignment_type == "primary",
+            PatientAssignment.revoked_at.is_(None),
+        )
+    ).scalars().all()
+
+    if target and any(a.doctor_user_id == target.id for a in live):
+        return {
+            "status": "unchanged",
+            "assigned_to": {"id": str(target.id), "full_name": target.full_name},
+        }
+
+    now = datetime.now(timezone.utc)
+    for a in live:
+        a.revoked_at = now
+
+    if target:
+        db.add(PatientAssignment(
+            patient_id=patient_id,
+            doctor_user_id=target.id,
+            assigned_by=current.id,
+            assignment_type="primary",
+        ))
+
+    db.commit()
+
+    try:
+        from app.audit import audit
+        audit(db, current, "patient.assign", "patient", patient_id,
+              ip=request.client.host if request.client else None,
+              extra={
+                  "to": str(target.id) if target else None,
+                  "revoked": [str(a.doctor_user_id) for a in live],
+              })
+    except Exception:
+        pass
+
+    if not target:
+        return {"status": "cleared", "assigned_to": None}
+    return {
+        "status": "assigned",
+        "assigned_to": {"id": str(target.id), "full_name": target.full_name, "role": target.role.value},
+    }

@@ -106,6 +106,13 @@ class ReviewRequest(BaseModel):
     clinician_notes: str | None = None
 
 
+class AssignedUserOut(BaseModel):
+    """The clinician currently holding a patient."""
+    id: uuid.UUID
+    full_name: str
+    role: UserRole
+
+
 # --- Patient profile / timeline ---
 class TimelineStudy(BaseModel):
     id: uuid.UUID
@@ -121,6 +128,8 @@ class TimelineStudy(BaseModel):
 
 class PatientTimeline(BaseModel):
     patient: PatientOut
+    # None when nobody holds the patient — never guessed from who uploaded.
+    assigned_to: AssignedUserOut | None = None
     total_studies: int
     critical_count: int
     modalities_count: int
