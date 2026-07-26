@@ -30,3 +30,7 @@ Thumbs.db
 # Backups from our patch scripts
 app/routers/*_backup_*.py
 app/*_backup_*.py
+patch_*.py
+backup/
+*.zip
+scanguru.net/
