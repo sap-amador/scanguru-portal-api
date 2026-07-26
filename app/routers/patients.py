@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sqlalchemy import desc, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.access import can_see_all_org_data
 from app.auth import get_current_user
 from app.crypto import decrypt, encrypt
 from app.database import get_db
@@ -76,10 +77,20 @@ def _current_assignee(db: Session, patient_id: uuid.UUID) -> Optional[User]:
 
 
 def _assert_access(db: Session, current: User, patient_id: uuid.UUID, patient: Patient) -> None:
-    """Enforce org scope + (for non-admins) explicit assignment."""
+    """Enforce org scope, then the org's configured access mode.
+
+    Routes through can_see_all_org_data() — the same helper studies.py uses —
+    rather than hand-rolling the rule. This function previously required an
+    explicit assignment from every non-admin whatever the access_mode, so in a
+    'shared' org (the default) list_patients would show a clinician the whole
+    roster while this 403'd on most of it.
+
+    'per_doctor' orgs are unaffected: non-admins still fall through to the
+    per-assignment check below.
+    """
     if patient.org_id != current.org_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Patient not found")
-    if current.role == UserRole.admin:
+    if can_see_all_org_data(db, current):
         return
     is_assigned = db.query(PatientAssignment).filter(
         PatientAssignment.patient_id == patient_id,
