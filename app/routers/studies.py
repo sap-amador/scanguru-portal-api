@@ -111,7 +111,7 @@ def _await_prediction(prediction: dict) -> dict:
     raise AIServiceError("AI job timed out after %ss" % AI_JOB_MAX_WAIT_SECONDS)
 
 
-def _generate_variant(study: "Study", variant: str) -> bytes:
+def _generate_variant(study: "Study", variant: str, db: Session, report: "Report") -> bytes:
     """Re-run the AI for a different report type and cache the PDF.
 
     Uses the stored source image, so nothing extra is kept on the study. The
@@ -123,9 +123,17 @@ def _generate_variant(study: "Study", variant: str) -> bytes:
     image_bytes = storage.get(study.source_image_key)
     filename = study.source_image_key.rsplit("/", 1)[-1]
 
-    prediction = analyze_image(
-        image_bytes, filename, study.modality.value, {"report_type": variant},
-    )
+    patient = db.get(Patient, study.patient_id)
+    pj = report.prediction_json if isinstance(report.prediction_json, dict) else {}
+    meta = {
+        "name": (decrypt(patient.name_encrypted) if patient else "") or "",
+        "age": _age_at(patient.dob, study.study_datetime) if (patient and patient.dob) else pj.get("age"),
+        "sex": (patient.sex if patient else None) or pj.get("sex") or "",
+        "lang": pj.get("lang") or pj.get("language") or "en",
+        "report_type": variant,
+        "region": pj.get("region"),
+    }
+    prediction = analyze_image(image_bytes, filename, study.modality.value, meta)
     prediction = _await_prediction(prediction)
 
     pdf_url = prediction.get("pdf_url") or prediction.get("report_url")
@@ -444,6 +452,9 @@ async def create_study(
     # directly instead of regenerating an identical PDF under a variant key.
     if isinstance(prediction, dict):
         prediction.setdefault("report_type", report_type)
+        prediction.setdefault("lang", lang)
+        if region:
+            prediction.setdefault("region", region)
 
     report = Report(
         study_id=study.id,
@@ -544,7 +555,7 @@ def get_report_pdf(
                 storage.get(pdf_key)          # already generated earlier
             except Exception:
                 try:
-                    _generate_variant(s, variant)
+                    _generate_variant(s, variant, db, r)
                 except AIServiceError as exc:
                     audit(db, current, "report.variant_failed", "report", r.id,
                           success=False, ip=ip,
