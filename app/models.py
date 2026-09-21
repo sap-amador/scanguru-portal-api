@@ -56,6 +56,7 @@ class Modality(str, PyEnum):
     MAMMO = "MAMMO"
     DENTAL = "DENTAL"
     MSK = "MSK"
+    MRI_BRAIN = "MRI_BRAIN"
     MRI_SPINE = "MRI_SPINE"
     MRI_KNEE = "MRI_KNEE"
     MRI_PROSTATE = "MRI_PROSTATE"
