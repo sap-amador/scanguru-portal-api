@@ -6,6 +6,7 @@ from datetime import date, datetime, timezone
 from typing import Annotated, Optional
 
 from fastapi import (
+    BackgroundTasks,
     APIRouter, Depends, File, Form, HTTPException, Query, Request,
     UploadFile, status,
 )
@@ -18,7 +19,7 @@ from app.ai_client import analyze_image, fetch_pdf, poll_job, AIServiceError
 from app.audit import audit
 from app.auth import get_current_user
 from app.crypto import encrypt, decrypt
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.models import (
     Study, Report, Patient, PatientAssignment, User,
     StudyStatus, Urgency, Modality, Org,
@@ -221,8 +222,121 @@ def list_studies(
     return StudyListResponse(items=items, total=total, page=page, page_size=page_size)
 
 
+
+# ---------------------------------------------------------------------------
+# ASYNC_STUDY_V1 — AI call + polling run after the HTTP response is sent.
+# POST /studies returns 202 {status: processing}; the dashboard polls
+# GET /studies/{id} until the status changes. No request ever waits on
+# inference, so no proxy/gunicorn/45 s ceiling applies.
+# ---------------------------------------------------------------------------
+AI_JOB_BACKGROUND_MAX_WAIT_SECONDS = 1800.0   # 30 min — CT series on CPU
+
+
+def _run_analysis_background(
+    study_id: uuid.UUID, patient_id: uuid.UUID, org_id: uuid.UUID, user_id: uuid.UUID,
+    image_bytes: bytes, filename: str, modality_value: str, meta: dict,
+    report_type: str, lang: str, region: Optional[str], ip: Optional[str],
+) -> None:
+    db = SessionLocal()
+    try:
+        study = db.get(Study, study_id)
+        current = db.get(User, user_id)
+        if not study or not current:
+            return
+        storage = get_storage()
+
+        def _fail(event: str, extra: dict) -> None:
+            study.status = StudyStatus.failed
+            db.commit()
+            audit(db, current, event, "study", study.id, success=False, ip=ip, extra=extra)
+
+        try:
+            prediction = analyze_image(image_bytes, filename, modality_value, meta)
+        except AIServiceError as e:
+            _fail("study.ai_failed", {"error": str(e)})
+            return
+
+        if prediction.get("async") and prediction.get("job_id"):
+            job_id = str(prediction["job_id"])
+            deadline = time.monotonic() + AI_JOB_BACKGROUND_MAX_WAIT_SECONDS
+            completed = False
+            while time.monotonic() < deadline:
+                time.sleep(AI_JOB_POLL_INTERVAL_SECONDS)
+                try:
+                    job = poll_job(job_id)
+                except AIServiceError as e:
+                    _fail("study.ai_failed", {"error": f"job poll failed: {e}", "job_id": job_id})
+                    return
+                job_status = str(job.get("status") or "").lower()
+                if job_status == "complete":
+                    merged = dict(prediction); merged.update(job); prediction = merged
+                    completed = True
+                    break
+                if job_status == "error":
+                    _fail("study.ai_failed", {"error": str(job.get("error") or "job failed"), "job_id": job_id})
+                    return
+            if not completed:
+                _fail("study.ai_timeout", {"job_id": job_id, "waited_seconds": AI_JOB_BACKGROUND_MAX_WAIT_SECONDS})
+                return
+
+        pdf_key = ""
+        pdf_url = prediction.get("pdf_url") or prediction.get("report_url")
+        if pdf_url:
+            try:
+                pdf_bytes = fetch_pdf(pdf_url)
+                pdf_key = f"org_{org_id}/patient_{patient_id}/study_{study.id}/report.pdf"
+                storage.put(pdf_bytes, pdf_key, content_type="application/pdf")
+            except AIServiceError:
+                pdf_key = ""
+
+        pred_payload = prediction.get("prediction", prediction)
+        primary_finding = str(
+            pred_payload.get("label") or pred_payload.get("prediction")
+            or pred_payload.get("assessment") or "Unknown"
+        )
+        confidence = float(pred_payload.get("confidence") or 0.0)
+        urgency_str = (pred_payload.get("urgency") or pred_payload.get("urgency_level") or "").upper()
+
+        if pred_payload.get("error") or primary_finding.strip().lower() in NON_RESULT_LABELS:
+            _fail("study.ai_failed", {"reason": "no usable prediction in a 200 response",
+                                      "label": primary_finding, "payload_excerpt": str(pred_payload)[:500]})
+            return
+
+        if isinstance(prediction, dict):
+            prediction.setdefault("report_type", report_type)
+            prediction.setdefault("lang", lang)
+            if region:
+                prediction.setdefault("region", region)
+
+        db.add(Report(
+            study_id=study.id, prediction_json=prediction, primary_finding=primary_finding,
+            confidence=confidence, pdf_key=pdf_key,
+            ai_service_version=str(prediction.get("model_version") or prediction.get("version") or "unknown"),
+        ))
+        if urgency_str == "STAT":
+            study.urgency = Urgency.stat; study.status = StudyStatus.critical
+        elif urgency_str == "URGENT":
+            study.urgency = Urgency.urgent; study.status = StudyStatus.critical
+        else:
+            study.status = StudyStatus.awaiting_review
+        db.commit()
+        audit(db, current, "study.ai_complete", "study", study.id, ip=ip,
+              extra={"primary_finding": primary_finding, "confidence": confidence})
+    except Exception as e:  # never let a background thread die silently
+        try:
+            st = db.get(Study, study_id)
+            if st and st.status == StudyStatus.processing:
+                st.status = StudyStatus.failed
+                db.commit()
+        except Exception:
+            pass
+        import logging; logging.exception("[ASYNC_STUDY_V1] background analysis crashed for %s: %s", study_id, e)
+    finally:
+        db.close()
+
 @router.post("", response_model=StudyCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_study(
+    background_tasks: BackgroundTasks,
     db: Annotated[Session, Depends(get_db)],
     current: Annotated[User, Depends(get_current_user)],
     request: Request,
@@ -335,159 +449,31 @@ async def create_study(
     # to surface a banner in the response later.
     # -------------------------------------------------------------------------
 
-    # --- Invoke AI service ---
-    try:
-        # The PDF prints an age. Prefer the age the DOB implies at scan time —
-        # a stored age drifts, a DOB does not.
-        meta_age = _age_at(patient.dob, study.study_datetime) if patient.dob else age
-        # Source demographics from the resolved patient record, not the
-        # upload form. When a study is created with patient_id, name and
-        # sex are not submitted at all, so the report would carry
-        # placeholders instead of the patient's own details.
-        meta = {
-            "name": decrypt(patient.name_encrypted) or name or "",
-            "age": meta_age,
-            "sex": patient.sex or sex,
-            "lang": lang,
-            "report_type": report_type,
-            "region": region,
-        }
-        prediction = analyze_image(image_bytes, file.filename or "upload", modality.value, meta)
-    except AIServiceError as e:
-        study.status = StudyStatus.failed
-        db.commit()
-        audit(db, current, "study.ai_failed", "study", study.id, success=False, ip=ip,
-              extra={"error": str(e)})
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI service failed: {e}")
-
-    # --- Async job path (CT Chest, MRI, PET, Ultrasound) ---
-    # analyze_image returns {"async": true, "job_id": ...} for these; without
-    # polling the study would be saved with no PDF and report.pdf would 404.
-    if prediction.get("async") and prediction.get("job_id"):
-        job_id = str(prediction["job_id"])
-        deadline = time.monotonic() + AI_JOB_MAX_WAIT_SECONDS
-        completed = False
-        while time.monotonic() < deadline:
-            time.sleep(AI_JOB_POLL_INTERVAL_SECONDS)
-            try:
-                job = poll_job(job_id)
-            except AIServiceError as e:
-                study.status = StudyStatus.failed
-                db.commit()
-                audit(db, current, "study.ai_failed", "study", study.id, success=False, ip=ip,
-                      extra={"error": f"job poll failed: {e}", "job_id": job_id})
-                raise HTTPException(status.HTTP_502_BAD_GATEWAY, f"AI service failed: {e}")
-
-            job_status = str(job.get("status") or "").lower()
-            if job_status == "complete":
-                # Merge rather than replace: keep any fields the initial
-                # response carried that the job payload omits.
-                merged = dict(prediction)
-                merged.update(job)
-                prediction = merged
-                completed = True
-                break
-            if job_status == "error":
-                study.status = StudyStatus.failed
-                db.commit()
-                audit(db, current, "study.ai_failed", "study", study.id, success=False, ip=ip,
-                      extra={"error": str(job.get("error") or "job failed"), "job_id": job_id})
-                raise HTTPException(
-                    status.HTTP_502_BAD_GATEWAY,
-                    f"AI analysis failed: {job.get('error') or 'unknown error'}",
-                )
-
-        if not completed:
-            study.status = StudyStatus.failed
-            db.commit()
-            audit(db, current, "study.ai_timeout", "study", study.id, success=False, ip=ip,
-                  extra={"job_id": job_id, "waited_seconds": AI_JOB_MAX_WAIT_SECONDS})
-            raise HTTPException(
-                status.HTTP_504_GATEWAY_TIMEOUT,
-                "AI analysis is taking longer than expected. Please try again.",
-            )
-
-    # --- Re-store the PDF under portal-controlled key ---
-    pdf_key = ""
-    pdf_url = prediction.get("pdf_url") or prediction.get("report_url")
-    if pdf_url:
-        try:
-            pdf_bytes = fetch_pdf(pdf_url)
-            pdf_key = f"org_{current.org_id}/patient_{patient.id}/study_{study.id}/report.pdf"
-            storage.put(pdf_bytes, pdf_key, content_type="application/pdf")
-        except AIServiceError:
-            pdf_key = ""  # Prediction JSON still useful even without the PDF
-
-    # --- Persist report ---
-    pred_payload = prediction.get("prediction", prediction)
-    primary_finding = str(
-        pred_payload.get("label")
-        or pred_payload.get("prediction")
-        or pred_payload.get("assessment")
-        or "Unknown"
+    # --- Hand the AI call to a background task (ASYNC_STUDY_V1) ---
+    meta_age = _age_at(patient.dob, study.study_datetime) if patient.dob else age
+    meta = {
+        "name": decrypt(patient.name_encrypted) or name or "",
+        "age": meta_age,
+        "sex": patient.sex or sex,
+        "lang": lang,
+        "report_type": report_type,
+        "region": region,
+    }
+    db.commit()  # make the processing row visible to the background session
+    background_tasks.add_task(
+        _run_analysis_background,
+        study.id, patient.id, current.org_id, current.id,
+        image_bytes, file.filename or "upload", modality.value, meta,
+        report_type, lang, region, ip,
     )
-    confidence = float(pred_payload.get("confidence") or 0.0)
-    urgency_str = (pred_payload.get("urgency") or pred_payload.get("urgency_level") or "").upper()
-
-    # A 200 response does not mean a usable prediction. When the service
-    # answers with an error payload — or with nothing this code recognises as
-    # a label — treat it exactly like the transport failures above rather than
-    # storing it as a finding. Without this the study lands on the worklist as
-    # awaiting_review with "Error" where a diagnosis should be.
-    if pred_payload.get("error") or primary_finding.strip().lower() in NON_RESULT_LABELS:
-        study.status = StudyStatus.failed
-        db.commit()
-        audit(db, current, "study.ai_failed", "study", study.id, success=False, ip=ip,
-              extra={
-                  "reason": "no usable prediction in a 200 response",
-                  "label": primary_finding,
-                  "payload_excerpt": str(pred_payload)[:500],
-              })
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY,
-            "AI service returned no usable prediction for this image.",
-        )
-
-    # Remember which report type pdf_key holds, so the viewer can serve it
-    # directly instead of regenerating an identical PDF under a variant key.
-    if isinstance(prediction, dict):
-        prediction.setdefault("report_type", report_type)
-        prediction.setdefault("lang", lang)
-        if region:
-            prediction.setdefault("region", region)
-
-    report = Report(
-        study_id=study.id,
-        prediction_json=prediction,
-        primary_finding=primary_finding,
-        confidence=confidence,
-        pdf_key=pdf_key,
-        ai_service_version=str(
-            prediction.get("model_version") or prediction.get("version") or "unknown"
-        ),
-    )
-    db.add(report)
-
-    # --- Status + urgency transition ---
-    if urgency_str == "STAT":
-        study.urgency = Urgency.stat
-        study.status = StudyStatus.critical
-    elif urgency_str == "URGENT":
-        study.urgency = Urgency.urgent
-        study.status = StudyStatus.critical
-    else:
-        study.status = StudyStatus.awaiting_review
-
-    db.commit()
-    db.refresh(study)
+    audit(db, current, "study.ai_queued", "study", study.id, ip=ip)
 
     return StudyCreateResponse(
         study_id=study.id,
         status=study.status,
-        primary_finding=primary_finding,
-        confidence=confidence,
+        primary_finding=None,
+        confidence=None,
     )
-
 
 @router.get("/{study_id}", response_model=StudyOut)
 def get_study(
