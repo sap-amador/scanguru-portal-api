@@ -115,18 +115,22 @@ def create_signup(
     notify = [e for e in settings.signup_notify_emails.split(",") if e.strip()]
     if notify:
         text = (
-            "New ScanGuru access request\n"
-            "===========================\n"
-            f"Name        : {req.first_name} {req.last_name}\n"
-            f"Email       : {req.email}\n"
-            f"Organization: {req.org_name}\n"
-            f"Role        : {req.role_text}\n"
-            f"Country     : {req.country}\n"
-            f"Interest    : {req.interest or '-'}\n"
-            f"Source      : {req.source}\n"
-            f"Request ID  : {req.id}\n\n"
-            f"Message:\n{req.message or '(none)'}\n\n"
-            f"Approve with:  python approve_signup.py --approve {req.id}\n"
+            "NEW ACCESS REQUEST  —  passed automatic spam checks\n"
+            "====================================================\n\n"
+            f"  Who      : {req.first_name} {req.last_name}  ({req.role_text})\n"
+            f"  Email    : {req.email}\n"
+            f"  Where    : {req.org_name}, {req.country}\n"
+            f"  Interest : {req.interest or '-'}\n\n"
+            f"  Message  :\n  {(req.message or '(none)').strip().replace(chr(10), chr(10) + '  ')}\n\n"
+            "----------------------------------------------------\n"
+            "HOW TO APPROVE (creates the account and emails a temporary password)\n\n"
+            "  1. Terminal:  cd <scanguru-portal repo>  &&  railway ssh\n"
+            f"  2. Inside:    python approve_signup.py --approve {req.id}\n"
+            "  3. Type exit\n\n"
+            "To decline instead, do nothing — the request stays 'pending' and is\n"
+            "visible with:  python approve_signup.py --list\n\n"
+            f"Request ID: {req.id}\n"
+            f"Submitted from {req.source} · IP {req.ip_address or '-'}\n"
         )
         send_email(notify, f"ScanGuru access request — {req.org_name}", text, reply_to=req.email)
 

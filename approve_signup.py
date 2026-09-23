@@ -137,13 +137,25 @@ def main():
         print("temp password: %s" % temp_pw)
 
         sent = send_email(
-            r.email, "Your ScanGuru account is ready",
-            "Hello %s,\n\nYour ScanGuru account has been approved.\n\n"
-            "Sign in at: %s\nEmail: %s\nTemporary password: %s\n\n"
-            "Please change your password after your first sign-in.\n\n"
-            "ScanGuru is provided for research and evaluation, and is built to support "
-            "a qualified clinician's judgment — not replace it.\n\nWarm regards,\nScanGuru Team\n"
-            % (r.first_name, settings.portal_login_url, r.email, temp_pw),
+            r.email, "Your ScanGuru account is ready — sign in details",
+            "Hello %s,\n\n"
+            "Good news: your ScanGuru access request for %s has been approved.\n\n"
+            "SIGN IN\n"
+            "  Portal   : %s\n"
+            "  Email    : %s\n"
+            "  Password : %s   (temporary — you will be asked to set your own on first sign-in)\n\n"
+            "WHAT YOU CAN DO\n"
+            "  Upload a chest X-ray, CT, MRI, mammogram, dental or MSK image (DICOM, PNG, JPG,\n"
+            "  or a .zip of a DICOM series) and receive a clinical, research and patient report\n"
+            "  in English plus your chosen language. CT and MRI series take 2-4 minutes.\n\n"
+            "PLEASE NOTE\n"
+            "  ScanGuru is provided for research and evaluation. It is built to support a\n"
+            "  qualified clinician's judgment, not to replace it, and is not a cleared medical device.\n\n"
+            "Questions or trouble signing in: reply to this email or write to support@scanguru.ai.\n\n"
+            "Warm regards,\n"
+            "The ScanGuru team\n"
+            "https://scanguru.ai\n"
+            % (r.first_name, org.name, settings.portal_login_url, r.email, temp_pw),
         )
         print("welcome email: %s" % ("sent" if sent else "NOT sent (SMTP unconfigured — share the temp password manually)"))
     except Exception:
