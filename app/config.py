@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     # Signup / access requests
     signup_notify_emails: str = "admin@scanguru.ai,sales@scanguru.ai"
     portal_login_url: str = "https://portal.scanguru.net"
+    signup_review_page_url: str = "https://scanguru.ai/approve.html"
 
     # Environment
     env: str = "dev"

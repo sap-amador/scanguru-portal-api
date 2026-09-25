@@ -7,9 +7,10 @@ the applicant always gets a clean confirmation and the row is always saved.
 """
 import re
 import time
+import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, EmailStr, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -19,6 +20,8 @@ from app.database import get_db
 from app.mailer import send_email
 from app.ratelimit import limiter
 from app.signup_models import SignupRequest
+from app.signup_admin import (verify_review_token, review_link, request_to_dict,
+                              approve_request, reject_request)
 
 router = APIRouter()
 
@@ -114,6 +117,7 @@ def create_signup(
     # Best-effort admin/sales notification — never blocks the response.
     notify = [e for e in settings.signup_notify_emails.split(",") if e.strip()]
     if notify:
+        link = review_link(req.id)
         text = (
             "NEW ACCESS REQUEST  —  passed automatic spam checks\n"
             "====================================================\n\n"
@@ -123,15 +127,63 @@ def create_signup(
             f"  Interest : {req.interest or '-'}\n\n"
             f"  Message  :\n  {(req.message or '(none)').strip().replace(chr(10), chr(10) + '  ')}\n\n"
             "----------------------------------------------------\n"
-            "HOW TO APPROVE (creates the account and emails a temporary password)\n\n"
-            "  1. Terminal:  cd <scanguru-portal repo>  &&  railway ssh\n"
-            f"  2. Inside:    python approve_signup.py --approve {req.id}\n"
-            "  3. Type exit\n\n"
-            "To decline instead, do nothing — the request stays 'pending' and is\n"
-            "visible with:  python approve_signup.py --list\n\n"
-            f"Request ID: {req.id}\n"
-            f"Submitted from {req.source} · IP {req.ip_address or '-'}\n"
+            "REVIEW, APPROVE OR REJECT (one click, link valid 30 days):\n\n"
+            f"  {link}\n\n"
+            "Approving creates the account and emails the applicant a temporary password.\n"
+            "Rejecting sends a courteous decline. Either way you can add a personal note.\n\n"
+            f"Fallback (terminal):  railway ssh  →  python approve_signup.py --approve {req.id}\n"
+            f"Request ID: {req.id} · from {req.source} · IP {req.ip_address or '-'}\n"
         )
         send_email(notify, f"ScanGuru access request — {req.org_name}", text, reply_to=req.email)
 
     return SignupAck(ok=True)
+
+
+# ---------------------------------------------------------------------------
+# SIGNUP_REVIEW_V1 — one-click review from the notification email.
+# Authenticated by the signed token in the link, not by a portal login.
+# ---------------------------------------------------------------------------
+class ReviewAction(BaseModel):
+    t: str
+    note: str | None = None
+
+
+def _load_for_review(db: Session, request_id: uuid.UUID, token: str) -> SignupRequest:
+    if not verify_review_token(str(request_id), token):
+        raise HTTPException(403, "This review link is invalid or has expired.")
+    r = db.get(SignupRequest, request_id)
+    if not r:
+        raise HTTPException(404, "Request not found.")
+    return r
+
+
+@router.get("/review/{request_id}")
+@limiter.limit("60/hour")
+def review_get(request_id: uuid.UUID, t: str, request: Request,
+               db: Annotated[Session, Depends(get_db)]):
+    return request_to_dict(_load_for_review(db, request_id, t))
+
+
+@router.post("/review/{request_id}/approve")
+@limiter.limit("30/hour")
+def review_approve(request_id: uuid.UUID, body: ReviewAction, request: Request,
+                   db: Annotated[Session, Depends(get_db)]):
+    r = _load_for_review(db, request_id, body.t)
+    result = approve_request(db, r, note=body.note)
+    ip = request.client.host if request.client else None
+    audit(db, None, "signup.approved" if result.get("ok") else "signup.approve_noop",
+          "signup_request", r.id, ip=ip, extra={"email": r.email, "via": "review_link",
+          "email_sent": result.get("email_sent"), "note": body.note})
+    return result
+
+
+@router.post("/review/{request_id}/reject")
+@limiter.limit("30/hour")
+def review_reject(request_id: uuid.UUID, body: ReviewAction, request: Request,
+                  db: Annotated[Session, Depends(get_db)]):
+    r = _load_for_review(db, request_id, body.t)
+    result = reject_request(db, r, note=body.note)
+    ip = request.client.host if request.client else None
+    audit(db, None, "signup.rejected" if result.get("ok") else "signup.reject_noop",
+          "signup_request", r.id, ip=ip, extra={"email": r.email, "via": "review_link", "note": body.note})
+    return result
