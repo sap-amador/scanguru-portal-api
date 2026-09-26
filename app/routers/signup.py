@@ -44,33 +44,47 @@ class SignupIn(BaseModel):
 
 
 _URL_RE = re.compile(r"(https?://|www\.|bit\.ly|t\.co/|tinyurl|\.ru\b|\.xyz\b)", re.I)
-_NON_LATIN_RE = re.compile(r"[\u0400-\u04FF\u0600-\u06FF\u4E00-\u9FFF\U0001F300-\U0001FAFF\u2700-\u27BF]")
 _MIN_FILL_SECONDS = 4
 
 
+_EMOJI_RE = re.compile(r"[\U0001F300-\U0001FAFF\u2700-\u27BF\u2600-\u26FF]")
+_NON_LATIN_SCRIPT_RE = re.compile(r"[\u0400-\u04FF\u0600-\u06FF\u4E00-\u9FFF\u0370-\u03FF\u0900-\u0DFF]")
+
+
 def spam_reasons(body: "SignupIn") -> list[str]:
-    """Cheap heuristics. Any hit => quarantine (status='spam'), never email."""
-    r: list[str] = []
-    if (body.website or "").strip():
-        r.append("HONEYPOT_FILLED")
+    """HARD signals quarantine on their own. SOFT signals need two to stack —
+    a real doctor may have a digit in a handle-like name, type their name in
+    Greek or Tamil, or be a fast typist; none of those alone is spam."""
+    hard: list[str] = []
+    soft: list[str] = []
     name = f"{body.first} {body.last}"
+    if (body.website or "").strip():
+        hard.append("HONEYPOT_FILLED")
     if _URL_RE.search(name) or _URL_RE.search(body.org or ""):
-        r.append("URL_IN_NAME_OR_ORG")
+        hard.append("URL_IN_NAME_OR_ORG")
     if _URL_RE.search(body.msg or ""):
-        r.append("URL_IN_MESSAGE")
-    if len(body.first.strip()) > 40 or len(body.last.strip()) > 40:
-        r.append("NAME_TOO_LONG")
-    if re.search(r"\d", name):
-        r.append("DIGITS_IN_NAME")
-    if _NON_LATIN_RE.search(name):
-        r.append("NON_LATIN_OR_EMOJI_IN_NAME")
+        hard.append("URL_IN_MESSAGE")
+    if _EMOJI_RE.search(name):
+        hard.append("EMOJI_IN_NAME")
     if body.msg and body.msg.strip() and body.msg.strip() == name.strip():
-        r.append("MESSAGE_EQUALS_NAME")
+        hard.append("MESSAGE_EQUALS_NAME")
+
+    if len(body.first.strip()) > 40 or len(body.last.strip()) > 40:
+        soft.append("NAME_TOO_LONG")
+    if re.search(r"\d", name):
+        soft.append("DIGITS_IN_NAME")
+    if _NON_LATIN_SCRIPT_RE.search(name):
+        soft.append("NON_LATIN_SCRIPT_IN_NAME")
     if body.form_ts:
         elapsed = time.time() - body.form_ts / 1000.0
         if elapsed < _MIN_FILL_SECONDS:
-            r.append(f"FILLED_IN_{elapsed:.1f}S")
-    return r
+            soft.append(f"FILLED_IN_{elapsed:.1f}S")
+
+    if hard:
+        return hard + soft
+    if len(soft) >= 2:
+        return soft
+    return []
 
 
 class SignupAck(BaseModel):
