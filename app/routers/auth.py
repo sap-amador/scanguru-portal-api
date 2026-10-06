@@ -9,7 +9,7 @@ from app.auth import (
 )
 from app.audit import audit
 from app.database import get_db
-from app.models import User
+from app.models import User, Org
 from app.schemas import LoginRequest, TokenResponse, UserOut
 from app.ratelimit import limiter, login_username_key  # PATCH:rate-limit v1
 
