@@ -2,7 +2,6 @@
 POST /auth/forgot-password {email}            -> always 200; emails a signed link if the user exists
 POST /auth/reset-password  {email, token, new_password}
 Token = HMAC(secret, user id + current hash prefix + expiry): single-use (changes with the hash), 1 h."""
-from __future__ import annotations
 import hashlib, hmac, time
 from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Request

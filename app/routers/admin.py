@@ -1,6 +1,5 @@
 """ADMIN_V1 — super-admin console API. Guarded by require_superadmin
 (email allow-list in SUPERADMIN_EMAILS). Every mutation is audited."""
-from __future__ import annotations
 import secrets, uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
