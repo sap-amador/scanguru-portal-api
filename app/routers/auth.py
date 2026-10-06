@@ -33,6 +33,11 @@ def login(
               success=False, extra={"email": body.email}, ip=ip)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
+    org = db.get(Org, user.org_id)
+    if org is not None and getattr(org, "is_active", True) is False:
+        audit(db, user, "auth.login.org_suspended", "user", user.id, success=False, ip=ip)
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This organisation is suspended. Contact support@scanguru.ai.")
+
     if user.totp_enabled:
         if not body.totp_code or not verify_totp(user.totp_secret or "", body.totp_code):
             audit(db, user, "auth.login.totp_failed", "user", user.id, success=False, ip=ip)

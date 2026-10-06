@@ -123,6 +123,8 @@ app.include_router(signup_router.router, prefix="/api/v1/signup", tags=["signup"
 app.include_router(account_router.router, prefix="/api/v1/auth", tags=["auth"])
 app.include_router(users_router.router, prefix="/api/v1/users", tags=["users"])
 app.include_router(metrics_router, prefix="/api/v1", tags=["metrics"])
+from app.routers import admin as admin_router  # ADMIN_V1
+app.include_router(admin_router.router, prefix="/api/v1/admin", tags=["admin"])
 
 
 # PATCH:health-head v1 — accept HEAD too so HEAD-only monitors don't 405

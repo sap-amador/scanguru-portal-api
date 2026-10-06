@@ -51,7 +51,21 @@ def get_current_user(
     user = db.get(User, user_id)
     if not user or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "User not found or inactive")
+    org = db.get(Org, user.org_id)
+    if org is not None and getattr(org, "is_active", True) is False:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "This organisation is suspended")
     return user
+
+
+def is_superadmin(user: User) -> bool:
+    allowed = {e.strip().lower() for e in settings.superadmin_emails.split(",") if e.strip()}
+    return user.email.lower() in allowed
+
+
+def require_superadmin(current: Annotated[User, Depends(get_current_user)]) -> User:
+    if not is_superadmin(current):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Super-admin only")
+    return current
 
 
 # --- TOTP scaffolding (not enforced by default; flip user.totp_enabled to require) ---
